@@ -1,8 +1,10 @@
 import { AdSlotCard } from "@/components/ad-slot-card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdSlots() {
+  const { toast } = useToast();
   // Mock data - todo: remove mock functionality
   const mockSlots = [
     {
@@ -62,7 +64,13 @@ export default function AdSlots() {
           <h1 className="text-3xl font-bold">광고 구좌 관리</h1>
           <p className="text-muted-foreground mt-1">광고 구좌별 현황을 확인하고 관리하세요</p>
         </div>
-        <Button data-testid="button-add-slot">
+        <Button 
+          onClick={() => toast({
+            title: "구좌 추가 기능",
+            description: "이 기능은 현재 개발 중입니다.",
+          })}
+          data-testid="button-add-slot"
+        >
           <Plus className="h-4 w-4 mr-2" />
           구좌 추가
         </Button>

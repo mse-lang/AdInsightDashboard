@@ -81,6 +81,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.initializeDefaultPricings();
+    this.initializeTestData();
   }
 
   private initializeDefaultPricings() {
@@ -107,6 +108,52 @@ export class MemStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+    });
+  }
+
+  private initializeTestData() {
+    const testAdvertisers = [
+      { name: "테크스타트업", businessNumber: "123-45-67890", ceoName: "김대표", status: "집행중", inquiryDate: "2024-01-15", amount: "2400000" },
+      { name: "이커머스컴퍼니", businessNumber: "234-56-78901", ceoName: "이대표", status: "부킹확정", inquiryDate: "2024-02-01", amount: "1500000" },
+      { name: "핀테크솔루션", businessNumber: "345-67-89012", ceoName: "박대표", status: "문의중", inquiryDate: "2024-02-10", amount: null },
+      { name: "AI플랫폼", businessNumber: "456-78-90123", ceoName: "최대표", status: "견적제시", inquiryDate: "2024-02-15", amount: "2400000" },
+      { name: "헬스케어스타트업", businessNumber: "567-89-01234", ceoName: "정대표", status: "집행중", inquiryDate: "2024-01-20", amount: "3900000" },
+    ];
+
+    const testContacts = [
+      { name: "김담당", email: "kim@techstartup.com", phone: "010-1234-5678", position: "마케팅팀장", isPrimary: true },
+      { name: "이담당", email: "lee@ecommerce.com", phone: "010-2345-6789", position: "홍보팀장", isPrimary: true },
+      { name: "박담당", email: "park@fintech.com", phone: "010-3456-7890", position: "사업개발", isPrimary: true },
+      { name: "최담당", email: "choi@aiplatform.com", phone: "010-4567-8901", position: "마케팅매니저", isPrimary: true },
+      { name: "정담당", email: "jung@healthcare.com", phone: "010-5678-9012", position: "광고담당", isPrimary: true },
+    ];
+
+    testAdvertisers.forEach((data, index) => {
+      const advertiser: Advertiser = {
+        id: this.nextAdvertiserId++,
+        name: data.name,
+        businessNumber: data.businessNumber,
+        ceoName: data.ceoName,
+        status: data.status,
+        inquiryDate: data.inquiryDate,
+        amount: data.amount,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.advertisers.push(advertiser);
+
+      const contact: Contact = {
+        id: this.nextContactId++,
+        advertiserId: advertiser.id,
+        name: testContacts[index].name,
+        email: testContacts[index].email,
+        phone: testContacts[index].phone,
+        position: testContacts[index].position,
+        isPrimary: testContacts[index].isPrimary,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.contacts.push(contact);
     });
   }
 

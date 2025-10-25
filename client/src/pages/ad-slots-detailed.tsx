@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
 import { useQuery } from "@tanstack/react-query";
 import type { Advertiser } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface AdMaterial {
   id: string;
@@ -40,6 +41,7 @@ type SlotStatus = "available" | "partial" | "full";
 export default function AdSlotsDetailed() {
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<AdMaterial | null>(null);
+  const { toast } = useToast();
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
@@ -141,7 +143,13 @@ export default function AdSlotsDetailed() {
           <h1 className="text-3xl font-bold">광고 구좌 관리</h1>
           <p className="text-muted-foreground mt-1">광고 구좌별 현황을 확인하고 관리하세요</p>
         </div>
-        <Button data-testid="button-add-slot">
+        <Button 
+          onClick={() => toast({
+            title: "구좌 추가 기능",
+            description: "이 기능은 현재 개발 중입니다.",
+          })}
+          data-testid="button-add-slot"
+        >
           <Plus className="h-4 w-4 mr-2" />
           구좌 추가
         </Button>
