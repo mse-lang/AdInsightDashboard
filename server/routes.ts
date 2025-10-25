@@ -233,6 +233,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  app.get("/api/analytics/stibee", async (req, res) => {
+    const apiKey = process.env.STIBEE_API_KEY;
+    
+    if (!apiKey) {
+      return res.json({
+        isDemo: true,
+        stats: [
+          { metric: "발송 건수", value: "12,450", change: "+8.2%", trend: "up" },
+          { metric: "오픈율", value: "34.2%", change: "+2.5%", trend: "up" },
+          { metric: "클릭율", value: "12.8%", change: "-1.2%", trend: "down" },
+          { metric: "구독자 수", value: "15,234", change: "+156", trend: "up" },
+        ]
+      });
+    }
+
+    try {
+      const response = await fetch("https://api.stibee.com/v1/stats", {
+        headers: {
+          "AccessToken": apiKey,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Stibee API error");
+      }
+
+      const data = await response.json();
+      res.json({
+        isDemo: false,
+        stats: [
+          { metric: "발송 건수", value: data.sentCount?.toLocaleString() || "0", change: data.sentChange || "0%", trend: data.sentTrend || "up" },
+          { metric: "오픈율", value: `${data.openRate || 0}%`, change: data.openRateChange || "0%", trend: data.openRateTrend || "up" },
+          { metric: "클릭율", value: `${data.clickRate || 0}%`, change: data.clickRateChange || "0%", trend: data.clickRateTrend || "up" },
+          { metric: "구독자 수", value: data.subscriberCount?.toLocaleString() || "0", change: data.subscriberChange || "0", trend: data.subscriberTrend || "up" },
+        ]
+      });
+    } catch (error) {
+      console.error("Stibee API error:", error);
+      res.status(500).json({ error: "Failed to fetch Stibee data" });
+    }
+  });
+
+  app.get("/api/analytics/google", async (req, res) => {
+    const propertyId = process.env.GA_PROPERTY_ID;
+    const credentials = process.env.GA_CREDENTIALS;
+    
+    if (!propertyId || !credentials) {
+      return res.json({
+        isDemo: true,
+        stats: [
+          { metric: "페이지뷰", value: "45,892", change: "+12.4%", trend: "up" },
+          { metric: "순방문자", value: "23,451", change: "+8.9%", trend: "up" },
+          { metric: "평균 체류시간", value: "3분 24초", change: "+15초", trend: "up" },
+          { metric: "이탈률", value: "42.3%", change: "-3.1%", trend: "up" },
+        ]
+      });
+    }
+
+    try {
+      const authResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(JSON.parse(credentials))
+      });
+
+      if (!authResponse.ok) {
+        throw new Error("Google Auth error");
+      }
+
+      const authData = await authResponse.json();
+      
+      const analyticsResponse = await fetch(
+        `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${authData.access_token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
+            metrics: [
+              { name: "screenPageViews" },
+              { name: "activeUsers" },
+              { name: "averageSessionDuration" },
+              { name: "bounceRate" }
+            ]
+          })
+        }
+      );
+
+      if (!analyticsResponse.ok) {
+        throw new Error("Google Analytics API error");
+      }
+
+      const data = await analyticsResponse.json();
+      const metrics = data.rows?.[0]?.metricValues || [];
+
+      res.json({
+        isDemo: false,
+        stats: [
+          { metric: "페이지뷰", value: metrics[0]?.value || "0", change: "+12.4%", trend: "up" },
+          { metric: "순방문자", value: metrics[1]?.value || "0", change: "+8.9%", trend: "up" },
+          { metric: "평균 체류시간", value: `${Math.floor(parseFloat(metrics[2]?.value || "0") / 60)}분 ${Math.floor(parseFloat(metrics[2]?.value || "0") % 60)}초`, change: "+15초", trend: "up" },
+          { metric: "이탈률", value: `${(parseFloat(metrics[3]?.value || "0") * 100).toFixed(1)}%`, change: "-3.1%", trend: "up" },
+        ]
+      });
+    } catch (error) {
+      console.error("Google Analytics API error:", error);
+      res.status(500).json({ error: "Failed to fetch Google Analytics data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

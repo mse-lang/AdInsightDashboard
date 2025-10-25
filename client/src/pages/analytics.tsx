@@ -21,9 +21,22 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Eye, MousePointer, Mail } from "lucide-react";
+import { TrendingUp, TrendingDown, Eye, MousePointer, Mail, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Advertiser } from "@shared/schema";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+type AnalyticsStat = {
+  metric: string;
+  value: string;
+  change: string;
+  trend: "up" | "down";
+};
+
+type AnalyticsResponse = {
+  isDemo: boolean;
+  stats: AnalyticsStat[];
+};
 
 export default function Analytics() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,6 +44,14 @@ export default function Analytics() {
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const { data: stibeeData } = useQuery<AnalyticsResponse>({
+    queryKey: ["/api/analytics/stibee"],
+  });
+
+  const { data: googleData } = useQuery<AnalyticsResponse>({
+    queryKey: ["/api/analytics/google"],
   });
 
   const threeMonthsAgo = useMemo(() => {
@@ -74,19 +95,8 @@ export default function Analytics() {
     { name: "eDM", value: 3200 },
   ];
 
-  const mockNewsletterStats = [
-    { metric: "발송 건수", value: "12,450", change: "+8.2%", trend: "up" },
-    { metric: "오픈율", value: "34.2%", change: "+2.5%", trend: "up" },
-    { metric: "클릭율", value: "12.8%", change: "-1.2%", trend: "down" },
-    { metric: "구독자 수", value: "15,234", change: "+156", trend: "up" },
-  ];
-
-  const mockWebStats = [
-    { metric: "페이지뷰", value: "45,892", change: "+12.4%", trend: "up" },
-    { metric: "순방문자", value: "23,451", change: "+8.9%", trend: "up" },
-    { metric: "평균 체류시간", value: "3분 24초", change: "+15초", trend: "up" },
-    { metric: "이탈률", value: "42.3%", change: "-3.1%", trend: "up" },
-  ];
+  const newsletterStats = stibeeData?.stats || [];
+  const webStats = googleData?.stats || [];
 
   const mockTopPerformers = [
     { advertiser: "테크스타트업", slot: "메인배너", impressions: "45,892", clicks: "2,345", ctr: "5.11%" },
@@ -123,8 +133,17 @@ export default function Analytics() {
         </TabsList>
 
         <TabsContent value="newsletter" className="space-y-6">
+          {stibeeData?.isDemo && (
+            <Alert data-testid="alert-stibee-demo">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                데모 데이터를 표시하고 있습니다. 실제 데이터를 보려면 Stibee API 키를 설정하세요.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {mockNewsletterStats.map((stat) => (
+            {newsletterStats.map((stat) => (
               <Card key={stat.metric}>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
@@ -151,19 +170,30 @@ export default function Analytics() {
 
           <Card>
             <CardHeader>
-              <CardTitle>뉴스레터 성과 (Stibee 연동)</CardTitle>
+              <CardTitle>뉴스레터 성과 (Stibee {stibeeData?.isDemo ? "데모" : "실시간 연동"})</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Stibee API와 연동하여 실시간 뉴스레터 성과를 확인하세요.
+                {stibeeData?.isDemo 
+                  ? "Stibee API 키를 설정하면 실시간 뉴스레터 성과를 확인할 수 있습니다."
+                  : "Stibee API와 연동하여 실시간 뉴스레터 성과를 표시하고 있습니다."}
               </p>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="web" className="space-y-6">
+          {googleData?.isDemo && (
+            <Alert data-testid="alert-google-demo">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                데모 데이터를 표시하고 있습니다. 실제 데이터를 보려면 Google Analytics API를 설정하세요.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {mockWebStats.map((stat) => (
+            {webStats.map((stat) => (
               <Card key={stat.metric}>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
@@ -171,8 +201,14 @@ export default function Analytics() {
                     <Eye className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="text-2xl font-bold">{stat.value}</div>
-                  <p className="text-xs text-green-600 mt-1 flex items-center">
-                    <TrendingUp className="h-3 w-3 mr-1" />
+                  <p className={`text-xs mt-1 flex items-center ${
+                    stat.trend === "up" ? "text-green-600" : "text-red-600"
+                  }`}>
+                    {stat.trend === "up" ? (
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                    )}
                     {stat.change}
                   </p>
                 </CardContent>
@@ -182,11 +218,13 @@ export default function Analytics() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Google Analytics 연동</CardTitle>
+              <CardTitle>Google Analytics {googleData?.isDemo ? "데모" : "실시간 연동"}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Google Analytics API와 연동하여 웹사이트 트래픽 및 사용자 행동을 분석하세요.
+                {googleData?.isDemo
+                  ? "Google Analytics API를 설정하면 실시간 웹사이트 트래픽 및 사용자 행동을 분석할 수 있습니다."
+                  : "Google Analytics API와 연동하여 실시간 데이터를 표시하고 있습니다."}
               </p>
             </CardContent>
           </Card>
