@@ -13,12 +13,41 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { UserPlus, Trash2, Shield, Save } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { UserPlus, Trash2, Shield, Save, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Pricing } from "@shared/schema";
+import type { Pricing, InsertPricing } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertPricingSchema } from "@shared/schema";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 interface User {
   id: string;
@@ -64,6 +93,64 @@ export default function Settings() {
 
   const [editedPricings, setEditedPricings] = useState<Record<number, Partial<Pricing>>>({});
   const [focusedPriceInput, setFocusedPriceInput] = useState<number | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [deletingPricing, setDeletingPricing] = useState<Pricing | null>(null);
+
+  const form = useForm<InsertPricing>({
+    resolver: zodResolver(insertPricingSchema),
+    defaultValues: {
+      productName: "",
+      productKey: "",
+      price: "",
+      specs: "",
+      description: "",
+    },
+  });
+
+  const createPricingMutation = useMutation({
+    mutationFn: async (data: InsertPricing) => {
+      const res = await apiRequest("POST", "/api/pricings", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricings"] });
+      setShowAddDialog(false);
+      form.reset();
+      toast({
+        title: "상품 추가 완료",
+        description: "새로운 상품이 성공적으로 추가되었습니다.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "추가 실패",
+        description: error.message || "상품 추가에 실패했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePricingMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/pricings/${id}`, undefined);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricings"] });
+      setDeletingPricing(null);
+      toast({
+        title: "상품 삭제 완료",
+        description: "상품이 성공적으로 삭제되었습니다.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "삭제 실패",
+        description: error.message || "상품 삭제에 실패했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const updatePricingMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<Pricing> }) => {
@@ -108,6 +195,16 @@ export default function Settings() {
     const num = parseInt(value.replace(/[^0-9]/g, ''));
     if (isNaN(num)) return value;
     return `₩${num.toLocaleString()}`;
+  };
+
+  const onAddPricing = (data: InsertPricing) => {
+    createPricingMutation.mutate(data);
+  };
+
+  const handleDeletePricing = () => {
+    if (deletingPricing) {
+      deletePricingMutation.mutate(deletingPricing.id);
+    }
   };
 
   const toggleUserStatus = (id: string) => {
@@ -228,11 +325,17 @@ export default function Settings() {
         <TabsContent value="pricing" className="space-y-6">
           <Card>
             <CardHeader>
-              <div>
-                <CardTitle>광고 상품 단가표</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  광고 상품별 기준 단가를 관리하세요
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>광고 상품 단가표</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    광고 상품별 기준 단가를 관리하세요
+                  </p>
+                </div>
+                <Button onClick={() => setShowAddDialog(true)} data-testid="button-add-pricing">
+                  <Plus className="h-4 w-4 mr-2" />
+                  추가 상품
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -289,15 +392,25 @@ export default function Settings() {
                             />
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSavePricing(pricing.id)}
-                              disabled={!isEdited || updatePricingMutation.isPending}
-                              data-testid={`button-save-pricing-${pricing.id}`}
-                            >
-                              <Save className="h-4 w-4 mr-2" />
-                              저장
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleSavePricing(pricing.id)}
+                                disabled={!isEdited || updatePricingMutation.isPending}
+                                data-testid={`button-save-pricing-${pricing.id}`}
+                              >
+                                <Save className="h-4 w-4 mr-2" />
+                                저장
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeletingPricing(pricing)}
+                                data-testid={`button-delete-pricing-${pricing.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -308,6 +421,141 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent data-testid="dialog-add-pricing">
+            <DialogHeader>
+              <DialogTitle>새로운 상품 추가</DialogTitle>
+              <DialogDescription>
+                광고 상품의 정보를 입력하여 단가표에 추가하세요
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onAddPricing)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="productName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>상품명</FormLabel>
+                      <FormControl>
+                        <Input placeholder="예: 메인 배너" {...field} data-testid="input-product-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="productKey"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>상품 키 (영문, 숫자, 언더스코어만)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="예: main_banner" {...field} data-testid="input-product-key" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>단가 (숫자만 입력)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="예: 2400000" 
+                          {...field}
+                          onChange={(e) => {
+                            const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                            field.onChange(numericValue);
+                          }}
+                          data-testid="input-product-price"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="specs"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>규격/특징 (선택)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="예: PC: 1900×400px, Mobile: 600×300px" {...field} data-testid="input-product-specs" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>설명 (선택)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="예: 매달 240만원" {...field} data-testid="input-product-description" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowAddDialog(false);
+                      form.reset();
+                    }}
+                    data-testid="button-cancel-add"
+                  >
+                    취소
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={createPricingMutation.isPending}
+                    data-testid="button-submit-add"
+                  >
+                    추가
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={!!deletingPricing} onOpenChange={() => setDeletingPricing(null)}>
+          <AlertDialogContent data-testid="dialog-delete-pricing">
+            <AlertDialogHeader>
+              <AlertDialogTitle>상품 삭제</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletingPricing && (
+                  <>
+                    '<strong>{deletingPricing.productName}</strong>' 상품을 삭제하시겠습니까?
+                    <br />
+                    이 작업은 되돌릴 수 없습니다.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">취소</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeletePricing}
+                disabled={deletePricingMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <TabsContent value="general" className="space-y-6">
           <Card>
