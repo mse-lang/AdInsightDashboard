@@ -21,6 +21,7 @@ import {
 import { Plus, Upload, Calendar, FileImage, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
+import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
 import { useQuery } from "@tanstack/react-query";
 import type { Advertiser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,9 @@ type SlotStatus = "available" | "partial" | "full";
 export default function AdSlotsDetailed() {
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<AdMaterial | null>(null);
+  const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
+  const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<number | null>(null);
+  const [isAdvertiserDialogOpen, setIsAdvertiserDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
@@ -136,6 +140,19 @@ export default function AdSlotsDetailed() {
     }
   };
 
+  const handleEditMaterial = (materialId: string) => {
+    setEditingMaterialId(materialId);
+    toast({
+      title: "소재 편집",
+      description: "소재 편집 기능이 활성화되었습니다.",
+    });
+  };
+
+  const handleAdvertiserClick = (advertiserId: string) => {
+    setSelectedAdvertiserId(parseInt(advertiserId));
+    setIsAdvertiserDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6" data-testid="page-ad-slots-detailed">
       <div className="flex items-center justify-between">
@@ -201,7 +218,12 @@ export default function AdSlotsDetailed() {
                       >
                         <FileImage className="h-3 w-3 text-muted-foreground" />
                         <span className="flex-1 truncate text-xs">{material}</span>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditMaterial(`${slot.id}-${idx}`)}
+                          data-testid={`button-edit-material-${slot.id}-${idx}`}
+                        >
                           <Edit className="h-3 w-3" />
                         </Button>
                       </div>
@@ -239,7 +261,13 @@ export default function AdSlotsDetailed() {
             <TableBody>
               {mockMaterials.map((material) => (
                 <TableRow key={material.id} data-testid={`row-material-${material.id}`}>
-                  <TableCell className="font-medium">{getAdvertiserName(material.advertiserId)}</TableCell>
+                  <TableCell 
+                    className="font-medium cursor-pointer hover:text-primary hover:underline"
+                    onClick={() => handleAdvertiserClick(material.advertiserId)}
+                    data-testid={`cell-advertiser-${material.id}`}
+                  >
+                    {getAdvertiserName(material.advertiserId)}
+                  </TableCell>
                   <TableCell>{material.slot}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -377,6 +405,12 @@ export default function AdSlotsDetailed() {
           )}
         </DialogContent>
       </Dialog>
+
+      <EditAdvertiserDialog
+        open={isAdvertiserDialogOpen}
+        onOpenChange={setIsAdvertiserDialogOpen}
+        advertiserId={selectedAdvertiserId}
+      />
     </div>
   );
 }
