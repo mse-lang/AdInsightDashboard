@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import type { Pricing } from "@shared/schema";
 import { QuoteDetailDialog } from "@/components/quote-detail-dialog";
-import { SelectAdvertiserDialog } from "@/components/select-advertiser-dialog";
+import { SelectAdvertiserDialog, type AdvertiserInfo } from "@/components/select-advertiser-dialog";
 
 interface QuoteItem {
   id: string;
@@ -164,7 +164,7 @@ export default function Quotes() {
     setIsQuoteDialogOpen(true);
   };
 
-  const handleAdvertiserSelect = (advertiser: any) => {
+  const handleAdvertiserSelect = (advertiser: AdvertiserInfo) => {
     setAdvertiserInfo(advertiser);
   };
 

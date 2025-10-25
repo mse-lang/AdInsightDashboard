@@ -22,7 +22,7 @@ import type { Advertiser, Contact } from "@shared/schema";
 import { Search, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface AdvertiserInfo {
+export interface AdvertiserInfo {
   id: number;
   name: string;
   ceoName: string;
@@ -51,11 +51,16 @@ export function SelectAdvertiserDialog({ open, onOpenChange, onSelect }: SelectA
     queryFn: async () => {
       const contactsByAdvertiser: Record<number, Contact[]> = {};
       
-      for (const advertiser of advertisers) {
+      const contactPromises = advertisers.map(async (advertiser) => {
         const res = await fetch(`/api/advertisers/${advertiser.id}/contacts`);
         const contacts = await res.json();
-        contactsByAdvertiser[advertiser.id] = contacts;
-      }
+        return { id: advertiser.id, contacts };
+      });
+      
+      const results = await Promise.all(contactPromises);
+      results.forEach(({ id, contacts }) => {
+        contactsByAdvertiser[id] = contacts;
+      });
       
       return contactsByAdvertiser;
     },
