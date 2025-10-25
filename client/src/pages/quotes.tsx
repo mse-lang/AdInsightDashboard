@@ -25,11 +25,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Trash2, FileText, ExternalLink, ChevronDown } from "lucide-react";
+import { Plus, Trash2, FileText, ExternalLink, ChevronDown, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import type { Pricing } from "@shared/schema";
 import { QuoteDetailDialog } from "@/components/quote-detail-dialog";
+import { SelectAdvertiserDialog } from "@/components/select-advertiser-dialog";
 
 interface QuoteItem {
   id: string;
@@ -59,6 +60,16 @@ export default function Quotes() {
   const [specialNotes, setSpecialNotes] = useState(
     "- 부가세 별도\n- 광고 소재는 게재 3일 전까지 제출\n- 결제는 게재 전 선입금 원칙"
   );
+
+  const [advertiserInfo, setAdvertiserInfo] = useState({
+    id: null as number | null,
+    name: "",
+    ceoName: "",
+    businessNumber: "",
+    contactName: "",
+    contactEmail: "",
+  });
+  const [isSelectAdvertiserOpen, setIsSelectAdvertiserOpen] = useState(false);
 
   const addItem = () => {
     setItems([
@@ -153,6 +164,10 @@ export default function Quotes() {
     setIsQuoteDialogOpen(true);
   };
 
+  const handleAdvertiserSelect = (advertiser: any) => {
+    setAdvertiserInfo(advertiser);
+  };
+
   return (
     <div className="space-y-6" data-testid="page-quotes">
       <div>
@@ -175,6 +190,76 @@ export default function Quotes() {
                 <div>
                   <Label>견적일자</Label>
                   <Input type="date" value={quoteDate} disabled data-testid="input-quote-date" />
+                </div>
+              </div>
+
+              <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">광고주 정보</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSelectAdvertiserOpen(true)}
+                    data-testid="button-select-advertiser"
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    광고주 선택
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="advertiser-name">광고주명</Label>
+                    <Input
+                      id="advertiser-name"
+                      value={advertiserInfo.name}
+                      onChange={(e) => setAdvertiserInfo({ ...advertiserInfo, name: e.target.value })}
+                      placeholder="광고주를 선택하거나 직접 입력"
+                      data-testid="input-advertiser-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ceo-name">대표이사명</Label>
+                    <Input
+                      id="ceo-name"
+                      value={advertiserInfo.ceoName}
+                      onChange={(e) => setAdvertiserInfo({ ...advertiserInfo, ceoName: e.target.value })}
+                      placeholder="대표이사명"
+                      data-testid="input-ceo-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business-number">사업자등록번호</Label>
+                    <Input
+                      id="business-number"
+                      value={advertiserInfo.businessNumber}
+                      onChange={(e) => setAdvertiserInfo({ ...advertiserInfo, businessNumber: e.target.value })}
+                      placeholder="123-45-67890"
+                      className="font-mono"
+                      data-testid="input-business-number"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact-name">담당자명</Label>
+                    <Input
+                      id="contact-name"
+                      value={advertiserInfo.contactName}
+                      onChange={(e) => setAdvertiserInfo({ ...advertiserInfo, contactName: e.target.value })}
+                      placeholder="담당자명"
+                      data-testid="input-contact-name"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="contact-email">이메일</Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      value={advertiserInfo.contactEmail}
+                      onChange={(e) => setAdvertiserInfo({ ...advertiserInfo, contactEmail: e.target.value })}
+                      placeholder="email@example.com"
+                      data-testid="input-contact-email"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -389,6 +474,12 @@ export default function Quotes() {
         open={isQuoteDialogOpen}
         onOpenChange={setIsQuoteDialogOpen}
         quote={selectedQuote}
+      />
+
+      <SelectAdvertiserDialog
+        open={isSelectAdvertiserOpen}
+        onOpenChange={setIsSelectAdvertiserOpen}
+        onSelect={handleAdvertiserSelect}
       />
     </div>
   );
