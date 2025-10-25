@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PerformanceChart } from "@/components/performance-chart";
@@ -10,10 +11,53 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Eye, MousePointer, Mail } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { Advertiser } from "@shared/schema";
 
 export default function Analytics() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const { data: advertisers = [] } = useQuery<Advertiser[]>({
+    queryKey: ["/api/advertisers"],
+  });
+
+  const threeMonthsAgo = useMemo(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 3);
+    return date;
+  }, []);
+
+  const executedAds = useMemo(() => {
+    const executedStatuses = ["집행중", "결과보고", "세금계산서 발행 및 대금 청구", "매출 입금"];
+    return advertisers.filter(adv => {
+      const isExecuted = executedStatuses.includes(adv.status);
+      if (!isExecuted) return false;
+      
+      const inquiryDate = new Date(adv.inquiryDate);
+      return inquiryDate >= threeMonthsAgo;
+    }).sort((a, b) => {
+      return new Date(b.inquiryDate).getTime() - new Date(a.inquiryDate).getTime();
+    });
+  }, [advertisers, threeMonthsAgo]);
+
+  const totalPages = Math.ceil(executedAds.length / itemsPerPage);
+  const paginatedAds = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return executedAds.slice(startIndex, startIndex + itemsPerPage);
+  }, [executedAds, currentPage, itemsPerPage]);
+
   const mockMonthlyData = [
     { month: "1월", amount: 3500 },
     { month: "2월", amount: 4200 },
@@ -151,33 +195,123 @@ export default function Analytics() {
         <TabsContent value="performance" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>광고 성과 Top 3</CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>광고 성과 - 최근 3개월</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    총 {executedAds.length}건의 집행 광고
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>광고주</TableHead>
-                    <TableHead>구좌</TableHead>
-                    <TableHead className="text-right">노출수</TableHead>
-                    <TableHead className="text-right">클릭수</TableHead>
-                    <TableHead className="text-right">CTR</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockTopPerformers.map((performer, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{performer.advertiser}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{performer.slot}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{performer.impressions}</TableCell>
-                      <TableCell className="text-right font-mono">{performer.clicks}</TableCell>
-                      <TableCell className="text-right font-mono font-bold">{performer.ctr}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {paginatedAds.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  최근 3개월 내 집행한 광고가 없습니다
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>광고주</TableHead>
+                        <TableHead>담당자</TableHead>
+                        <TableHead>상태</TableHead>
+                        <TableHead>광고 금액</TableHead>
+                        <TableHead>문의일자</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedAds.map((ad) => (
+                        <TableRow key={ad.id} data-testid={`row-ad-${ad.id}`}>
+                          <TableCell className="font-medium">{ad.name}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm">{ad.contact}</span>
+                              <span className="text-xs text-muted-foreground">{ad.email}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={
+                                ad.status === "집행중" 
+                                  ? "default" 
+                                  : ad.status === "매출 입금" 
+                                  ? "secondary" 
+                                  : "outline"
+                              }
+                            >
+                              {ad.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono">
+                            {ad.amount || "₩0"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(ad.inquiryDate).toLocaleDateString("ko-KR")}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {totalPages > 1 && (
+                    <div className="mt-6">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                              data-testid="button-prev-page"
+                            />
+                          </PaginationItem>
+                          
+                          {[...Array(totalPages)].map((_, idx) => {
+                            const pageNum = idx + 1;
+                            if (
+                              pageNum === 1 ||
+                              pageNum === totalPages ||
+                              (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                            ) {
+                              return (
+                                <PaginationItem key={pageNum}>
+                                  <PaginationLink
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    isActive={currentPage === pageNum}
+                                    className="cursor-pointer"
+                                    data-testid={`button-page-${pageNum}`}
+                                  >
+                                    {pageNum}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              );
+                            } else if (
+                              pageNum === currentPage - 2 ||
+                              pageNum === currentPage + 2
+                            ) {
+                              return (
+                                <PaginationItem key={pageNum}>
+                                  <PaginationEllipsis />
+                                </PaginationItem>
+                              );
+                            }
+                            return null;
+                          })}
+                          
+                          <PaginationItem>
+                            <PaginationNext 
+                              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                              className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                              data-testid="button-next-page"
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
