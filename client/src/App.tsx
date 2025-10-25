@@ -8,7 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Advertisers from "@/pages/advertisers";
-import AdSlots from "@/pages/ad-slots";
+import AdSlots from "@/pages/ad-slots-detailed";
 import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
 import Materials from "@/pages/materials";

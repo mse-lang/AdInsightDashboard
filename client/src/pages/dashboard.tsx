@@ -5,6 +5,7 @@ import { AdvertiserTable } from "@/components/advertiser-table";
 import { PerformanceChart } from "@/components/performance-chart";
 import { SalesPieChart } from "@/components/sales-pie-chart";
 import { NotificationBanner } from "@/components/notification-banner";
+import { CalendarView } from "@/components/calendar-view";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
 
 export default function Dashboard() {
@@ -68,6 +69,25 @@ export default function Dashboard() {
     { name: "eDM", value: 3200 },
   ];
 
+  const mockCalendarEvents = [
+    {
+      id: "1",
+      advertiser: "테크스타트업",
+      slot: "메인배너",
+      startDate: "2024-01-15",
+      endDate: "2024-01-25",
+      status: "집행중" as const,
+    },
+    {
+      id: "2",
+      advertiser: "이커머스컴퍼니",
+      slot: "사이드배너",
+      startDate: "2024-01-20",
+      endDate: "2024-02-05",
+      status: "부킹확정" as const,
+    },
+  ];
+
   return (
     <div className="space-y-6" data-testid="page-dashboard">
       {hasNotification && (
@@ -95,6 +115,8 @@ export default function Dashboard() {
       </div>
 
       <ProgressPipeline stages={mockStages} />
+
+      <CalendarView events={mockCalendarEvents} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PerformanceChart data={mockChartData} />
