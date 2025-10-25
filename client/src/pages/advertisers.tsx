@@ -5,9 +5,19 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Advertiser } from "@shared/schema";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 export default function Advertisers() {
   const [, setLocation] = useLocation();
+  const [filterType, setFilterType] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const filter = params.get('filter');
+    setFilterType(filter);
+  }, [window.location.search]);
   
   const { data: advertisers = [], isLoading } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
@@ -30,7 +40,25 @@ export default function Advertisers() {
     setLocation(`/advertisers/${id}`);
   };
 
-  const mappedAdvertisers = advertisers.map((adv) => ({
+  const filteredAdvertisers = useMemo(() => {
+    if (!filterType) return advertisers;
+    
+    if (filterType === 'inquiry') {
+      return advertisers.filter(adv => 
+        ['문의중', '견적제시', '일정조율중'].includes(adv.status)
+      );
+    }
+    
+    if (filterType === 'active') {
+      return advertisers.filter(adv => 
+        ['부킹확정', '집행중'].includes(adv.status)
+      );
+    }
+    
+    return advertisers;
+  }, [advertisers, filterType]);
+
+  const mappedAdvertisers = filteredAdvertisers.map((adv) => ({
     id: adv.id.toString(),
     name: adv.name,
     contact: adv.contact,
@@ -39,6 +67,17 @@ export default function Advertisers() {
     amount: adv.amount ? `₩${parseInt(adv.amount).toLocaleString()}` : "₩0",
     date: adv.inquiryDate,
   }));
+
+  const clearFilter = () => {
+    setFilterType(null);
+    setLocation("/advertisers");
+  };
+
+  const getFilterLabel = () => {
+    if (filterType === 'inquiry') return '신규 문의';
+    if (filterType === 'active') return '집행중 광고';
+    return null;
+  };
 
   return (
     <div className="space-y-6" data-testid="page-advertisers">
@@ -49,6 +88,21 @@ export default function Advertisers() {
         </div>
         <AddAdvertiserDialog />
       </div>
+
+      {filterType && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">필터:</span>
+          <Badge 
+            variant="secondary" 
+            className="gap-1 cursor-pointer hover-elevate"
+            onClick={clearFilter}
+            data-testid="badge-filter"
+          >
+            {getFilterLabel()}
+            <X className="h-3 w-3" />
+          </Badge>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-4">

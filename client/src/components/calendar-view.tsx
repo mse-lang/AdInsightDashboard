@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AdSlotDialog } from "./ad-slot-dialog";
 
 interface CalendarEvent {
   id: string;
@@ -19,6 +20,13 @@ interface CalendarViewProps {
 
 export function CalendarView({ events }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    setIsDialogOpen(true);
+  };
 
   const getMonthData = (monthOffset: number) => {
     const date = new Date(currentMonth);
@@ -80,10 +88,11 @@ export function CalendarView({ events }: CalendarViewProps) {
       days.push(
         <div
           key={day}
-          className={`aspect-square p-1 border rounded-md ${
+          className={`aspect-square p-1 border rounded-md cursor-pointer ${
             isToday ? "bg-blue-50 dark:bg-blue-950 border-blue-300" : "hover-elevate"
           }`}
           data-testid={`calendar-day-${year}-${month}-${day}`}
+          onClick={() => handleDateClick(date)}
         >
           <div className="text-xs font-medium mb-1">{day}</div>
           <div className="space-y-1">
@@ -128,45 +137,53 @@ export function CalendarView({ events }: CalendarViewProps) {
   };
 
   return (
-    <Card data-testid="card-calendar-view">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>광고 캘린더</CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPreviousMonth}
-              data-testid="button-prev-month"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNextMonth}
-              data-testid="button-next-month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+    <>
+      <Card data-testid="card-calendar-view">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>광고 캘린더</CardTitle>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousMonth}
+                data-testid="button-prev-month"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextMonth}
+                data-testid="button-next-month"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2 mt-2">
-          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
-            부킹확정
-          </Badge>
-          <Badge variant="outline" className="bg-indigo-100 text-indigo-700 border-indigo-200">
-            집행중
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex gap-4 overflow-x-auto">
-          {renderMonthCalendar(-1)}
-          {renderMonthCalendar(0)}
-          {renderMonthCalendar(1)}
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex gap-2 mt-2">
+            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+              부킹확정
+            </Badge>
+            <Badge variant="outline" className="bg-indigo-100 text-indigo-700 border-indigo-200">
+              집행중
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 overflow-x-auto">
+            {renderMonthCalendar(-1)}
+            {renderMonthCalendar(0)}
+            {renderMonthCalendar(1)}
+          </div>
+        </CardContent>
+      </Card>
+      <AdSlotDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        date={selectedDate}
+        events={events}
+      />
+    </>
   );
 }

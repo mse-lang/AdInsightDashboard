@@ -10,11 +10,16 @@ interface StatCardProps {
     trend: "up" | "down";
   };
   description?: string;
+  onClick?: () => void;
 }
 
-export function StatCard({ title, value, icon: Icon, change, description }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, change, description, onClick }: StatCardProps) {
   return (
-    <Card data-testid={`card-stat-${title}`}>
+    <Card 
+      data-testid={`card-stat-${title}`}
+      className={onClick ? "cursor-pointer hover-elevate" : ""}
+      onClick={onClick}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />

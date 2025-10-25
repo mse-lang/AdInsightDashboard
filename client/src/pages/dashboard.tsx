@@ -7,9 +7,11 @@ import { SalesPieChart } from "@/components/sales-pie-chart";
 import { NotificationBanner } from "@/components/notification-banner";
 import { CalendarView } from "@/components/calendar-view";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function Dashboard() {
   const [hasNotification, setHasNotification] = useState(true);
+  const [, setLocation] = useLocation();
 
   // Mock data - todo: remove mock functionality
   const mockStages = [
@@ -103,8 +105,14 @@ export default function Dashboard() {
           value={12}
           icon={Users}
           change={{ value: "8.2%", trend: "up" }}
+          onClick={() => setLocation("/advertisers?filter=inquiry")}
         />
-        <StatCard title="집행중 광고" value={24} icon={TrendingUp} />
+        <StatCard 
+          title="집행중 광고" 
+          value={24} 
+          icon={TrendingUp}
+          onClick={() => setLocation("/advertisers?filter=active")}
+        />
         <StatCard
           title="이번달 매출"
           value="₩45,000,000"
