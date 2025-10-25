@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema } from "@shared/schema";
+import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema, insertAdSchema } from "@shared/schema";
 import jwt from "jsonwebtoken";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -229,6 +229,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     if (!deleted) {
       return res.status(404).json({ error: "Pricing not found" });
+    }
+    
+    res.json({ success: true });
+  });
+
+  app.get("/api/ads", async (req, res) => {
+    const ads = await storage.getAds();
+    res.json(ads);
+  });
+
+  app.get("/api/ads/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const ad = await storage.getAdById(id);
+    
+    if (!ad) {
+      return res.status(404).json({ error: "Ad not found" });
+    }
+    
+    res.json(ad);
+  });
+
+  app.get("/api/advertisers/:advertiserId/ads", async (req, res) => {
+    const advertiserId = parseInt(req.params.advertiserId);
+    const ads = await storage.getAdsByAdvertiserId(advertiserId);
+    res.json(ads);
+  });
+
+  app.post("/api/ads", async (req, res) => {
+    try {
+      const data = insertAdSchema.parse(req.body);
+      const ad = await storage.createAd(data);
+      res.json(ad);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid data" });
+    }
+  });
+
+  app.patch("/api/ads/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const ad = await storage.updateAd(id, req.body);
+    
+    if (!ad) {
+      return res.status(404).json({ error: "Ad not found" });
+    }
+    
+    res.json(ad);
+  });
+
+  app.delete("/api/ads/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const deleted = await storage.deleteAd(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "Ad not found" });
     }
     
     res.json({ success: true });

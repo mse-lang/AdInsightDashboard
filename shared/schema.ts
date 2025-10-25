@@ -162,3 +162,25 @@ export const insertPricingSchema = createInsertSchema(pricings).omit({
 
 export type InsertPricing = z.infer<typeof insertPricingSchema>;
 export type Pricing = typeof pricings.$inferSelect;
+
+export const ads = pgTable("ads", {
+  id: serial("id").primaryKey(),
+  adId: text("ad_id").notNull().unique(),
+  advertiserId: integer("advertiser_id").notNull().references(() => advertisers.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("문의중"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  amount: text("amount"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAdSchema = createInsertSchema(ads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAd = z.infer<typeof insertAdSchema>;
+export type Ad = typeof ads.$inferSelect;

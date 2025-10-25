@@ -14,7 +14,9 @@ import type {
   Material,
   InsertMaterial,
   Pricing,
-  InsertPricing
+  InsertPricing,
+  Ad,
+  InsertAd
 } from "@shared/schema";
 
 export interface IStorage {
@@ -58,6 +60,13 @@ export interface IStorage {
   createPricing(data: InsertPricing): Promise<Pricing>;
   updatePricing(id: number, data: Partial<InsertPricing>): Promise<Pricing | undefined>;
   deletePricing(id: number): Promise<boolean>;
+  
+  getAds(): Promise<Ad[]>;
+  getAdById(id: number): Promise<Ad | undefined>;
+  getAdsByAdvertiserId(advertiserId: number): Promise<Ad[]>;
+  createAd(data: InsertAd): Promise<Ad>;
+  updateAd(id: number, data: Partial<InsertAd>): Promise<Ad | undefined>;
+  deleteAd(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -69,6 +78,7 @@ export class MemStorage implements IStorage {
   private quotes: Quote[] = [];
   private materials: Material[] = [];
   private pricings: Pricing[] = [];
+  private ads: Ad[] = [];
   
   private nextAdvertiserId = 1;
   private nextContactId = 1;
@@ -78,6 +88,7 @@ export class MemStorage implements IStorage {
   private nextQuoteId = 1;
   private nextMaterialId = 1;
   private nextPricingId = 1;
+  private nextAdId = 1;
 
   constructor() {
     this.initializeDefaultPricings();
@@ -541,6 +552,55 @@ export class MemStorage implements IStorage {
     if (index === -1) return false;
     
     this.pricings.splice(index, 1);
+    return true;
+  }
+
+  async getAds(): Promise<Ad[]> {
+    return this.ads;
+  }
+
+  async getAdById(id: number): Promise<Ad | undefined> {
+    return this.ads.find(a => a.id === id);
+  }
+
+  async getAdsByAdvertiserId(advertiserId: number): Promise<Ad[]> {
+    return this.ads.filter(a => a.advertiserId === advertiserId);
+  }
+
+  async createAd(data: InsertAd): Promise<Ad> {
+    const ad: Ad = {
+      id: this.nextAdId++,
+      adId: data.adId,
+      advertiserId: data.advertiserId,
+      status: data.status || "문의중",
+      startDate: data.startDate || null,
+      endDate: data.endDate || null,
+      amount: data.amount || null,
+      description: data.description || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.ads.push(ad);
+    return ad;
+  }
+
+  async updateAd(id: number, data: Partial<InsertAd>): Promise<Ad | undefined> {
+    const index = this.ads.findIndex(a => a.id === id);
+    if (index === -1) return undefined;
+    
+    this.ads[index] = {
+      ...this.ads[index],
+      ...data,
+      updatedAt: new Date(),
+    };
+    return this.ads[index];
+  }
+
+  async deleteAd(id: number): Promise<boolean> {
+    const index = this.ads.findIndex(a => a.id === id);
+    if (index === -1) return false;
+    
+    this.ads.splice(index, 1);
     return true;
   }
 }
