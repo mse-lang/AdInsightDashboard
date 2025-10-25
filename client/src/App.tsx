@@ -12,6 +12,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Advertisers from "@/pages/advertisers";
 import AdvertiserDetail from "@/pages/advertiser-detail";
+import Ads from "@/pages/ads";
 import AdSlots from "@/pages/ad-slots-detailed";
 import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
@@ -25,6 +26,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/ads" component={Ads} />
       <Route path="/advertisers" component={Advertisers} />
       <Route path="/advertisers/:id" component={AdvertiserDetail} />
       <Route path="/ad-slots" component={AdSlots} />
