@@ -16,7 +16,7 @@ import logoImage from "@assets/venturesquare logo_로고만_1761404131673.png";
 const menuItems = [
   { title: "대시보드", url: "/", icon: Home },
   { title: "광고주 관리", url: "/advertisers", icon: Users },
-  { title: "광고 구좌 관리", url: "/ad-slots", icon: Calendar },
+  { title: "광고 집행 관리", url: "/ad-slots", icon: Calendar },
   { title: "견적/청구", url: "/quotes", icon: FileText },
   { title: "성과 분석", url: "/analytics", icon: BarChart3 },
   { title: "광고소개서", url: "/materials", icon: Mail },
