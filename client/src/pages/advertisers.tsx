@@ -107,16 +107,20 @@ export default function Advertisers() {
     };
   });
 
-  const clearFilter = () => {
-    setFilterType(null);
-    setLocation("/advertisers");
+  const toggleFilter = (filter: string) => {
+    if (filterType === filter) {
+      setFilterType(null);
+      setLocation("/advertisers");
+    } else {
+      setFilterType(filter);
+      setLocation(`/advertisers?filter=${filter}`);
+    }
   };
 
-  const getFilterLabel = () => {
-    if (filterType === 'inquiry') return '신규 문의';
-    if (filterType === 'active') return '집행중 광고';
-    return null;
-  };
+  const filters = [
+    { id: 'inquiry', label: '신규 문의', description: '문의중, 견적제시, 일정조율중' },
+    { id: 'active', label: '집행중 광고', description: '부킹확정, 집행중' },
+  ];
 
   return (
     <div className="space-y-6" data-testid="page-advertisers">
@@ -128,20 +132,21 @@ export default function Advertisers() {
         <AddAdvertiserDialog />
       </div>
 
-      {filterType && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">필터:</span>
-          <Badge 
-            variant="secondary" 
-            className="gap-1 cursor-pointer hover-elevate"
-            onClick={clearFilter}
-            data-testid="badge-filter"
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-muted-foreground">필터:</span>
+        {filters.map((filter) => (
+          <Badge
+            key={filter.id}
+            variant={filterType === filter.id ? "default" : "outline"}
+            className="cursor-pointer hover-elevate"
+            onClick={() => toggleFilter(filter.id)}
+            data-testid={`badge-filter-${filter.id}`}
           >
-            {getFilterLabel()}
-            <X className="h-3 w-3" />
+            {filter.label}
+            {filterType === filter.id && <X className="h-3 w-3 ml-1" />}
           </Badge>
-        </div>
-      )}
+        ))}
+      </div>
 
       {isLoading ? (
         <div className="space-y-4">
