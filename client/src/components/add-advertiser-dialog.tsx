@@ -31,9 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Upload, X } from "lucide-react";
 import { AdStatus } from "./status-badge";
-import type { InsertAdvertiser, InsertContact } from "@shared/schema";
+import { Textarea } from "@/components/ui/textarea";
+import type { InsertAdvertiser, InsertContact, InsertMemo } from "@shared/schema";
 
 const advertiserSchema = z.object({
   name: z.string().min(2, "광고주명을 입력해주세요"),
@@ -45,6 +46,7 @@ const advertiserSchema = z.object({
   ceoName: z.string().optional(),
   status: z.string(),
   inquiryDate: z.string(),
+  memo: z.string().optional(),
 });
 
 type AdvertiserFormData = z.infer<typeof advertiserSchema>;
@@ -67,6 +69,9 @@ const allStatuses: AdStatus[] = [
 export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const [businessRegFile, setBusinessRegFile] = useState<string>("");
+  const [bankAccountFile, setBankAccountFile] = useState<string>("");
+  const [logoFile, setLogoFile] = useState<string>("");
   
   const form = useForm<AdvertiserFormData>({
     resolver: zodResolver(advertiserSchema),
@@ -80,6 +85,7 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
       ceoName: "",
       status: "문의중",
       inquiryDate: new Date().toISOString().split('T')[0],
+      memo: "",
     },
   });
 
@@ -91,6 +97,9 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
         ceoName: data.ceoName,
         status: data.status,
         inquiryDate: data.inquiryDate,
+        businessRegFile: businessRegFile || undefined,
+        bankAccountFile: bankAccountFile || undefined,
+        logoFile: logoFile || undefined,
       };
       
       const res = await apiRequest("POST", "/api/advertisers", advertiserData);
@@ -107,10 +116,20 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
         };
         
         await apiRequest("POST", "/api/contacts", contactData);
+        
+        if (data.memo && data.memo.trim()) {
+          const memoData: InsertMemo = {
+            advertiserId: advertiser.id,
+            content: data.memo,
+            files: [],
+          };
+          await apiRequest("POST", "/api/memos", memoData);
+        }
+        
         return advertiser;
       } catch (error) {
         await apiRequest("DELETE", `/api/advertisers/${advertiser.id}`, undefined);
-        throw new Error("담당자 정보 저장 실패. 광고주 추가를 롤백했습니다.");
+        throw new Error("담당자/메모 정보 저장 실패. 광고주 추가를 롤백했습니다.");
       }
     },
     onSuccess: () => {
@@ -121,6 +140,9 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
         description: "새로운 광고주가 추가되었습니다.",
       });
       form.reset();
+      setBusinessRegFile("");
+      setBankAccountFile("");
+      setLogoFile("");
       setOpen(false);
     },
     onError: (error: Error) => {
@@ -134,6 +156,16 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
 
   const onSubmit = (data: AdvertiserFormData) => {
     createAdvertiserMutation.mutate(data);
+  };
+
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setFile: (file: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFile(file.name);
+    }
   };
 
   return (
@@ -289,20 +321,139 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
               )}
             />
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>첨부 파일</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" size="sm" data-testid="button-upload-business">
-                  사업자등록증 업로드
-                </Button>
-                <Button type="button" variant="outline" size="sm" data-testid="button-upload-bank">
-                  통장사본 업로드
-                </Button>
-                <Button type="button" variant="outline" size="sm" data-testid="button-upload-logo">
-                  로고 업로드
-                </Button>
+              <div className="space-y-2">
+                <div>
+                  <Input
+                    type="file"
+                    id="business-reg-file"
+                    onChange={(e) => handleFileChange(e, setBusinessRegFile)}
+                    className="hidden"
+                    data-testid="input-file-business"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById("business-reg-file")?.click()}
+                      data-testid="button-upload-business"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      사업자등록증 업로드
+                    </Button>
+                    {businessRegFile && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <span>{businessRegFile}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setBusinessRegFile("")}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Input
+                    type="file"
+                    id="bank-account-file"
+                    onChange={(e) => handleFileChange(e, setBankAccountFile)}
+                    className="hidden"
+                    data-testid="input-file-bank"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById("bank-account-file")?.click()}
+                      data-testid="button-upload-bank"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      통장사본 업로드
+                    </Button>
+                    {bankAccountFile && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <span>{bankAccountFile}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setBankAccountFile("")}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Input
+                    type="file"
+                    id="logo-file"
+                    onChange={(e) => handleFileChange(e, setLogoFile)}
+                    className="hidden"
+                    accept="image/*"
+                    data-testid="input-file-logo"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById("logo-file")?.click()}
+                      data-testid="button-upload-logo"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      로고 업로드
+                    </Button>
+                    {logoFile && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <span>{logoFile}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLogoFile("")}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
+
+            <FormField
+              control={form.control}
+              name="memo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>초기 메모 (선택)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="광고주에 대한 초기 메모를 입력하세요"
+                      className="resize-none"
+                      rows={3}
+                      {...field}
+                      data-testid="textarea-memo"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
