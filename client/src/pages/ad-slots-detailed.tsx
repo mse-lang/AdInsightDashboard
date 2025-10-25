@@ -11,6 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Plus, Upload, Calendar, FileImage, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
@@ -30,6 +37,7 @@ type SlotStatus = "available" | "partial" | "full";
 
 export default function AdSlotsDetailed() {
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
+  const [previewMaterial, setPreviewMaterial] = useState<AdMaterial | null>(null);
 
   const mockSlots: Array<{
     id: string;
@@ -206,7 +214,7 @@ export default function AdSlotsDetailed() {
                 <TableHead>노출 기간</TableHead>
                 <TableHead className="text-right">집행 금액</TableHead>
                 <TableHead>상태</TableHead>
-                <TableHead className="text-right">액션</TableHead>
+                <TableHead className="text-right">확인하기</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -266,7 +274,12 @@ export default function AdSlotsDetailed() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" data-testid={`button-view-${material.id}`}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setPreviewMaterial(material)}
+                      data-testid={`button-view-${material.id}`}
+                    >
                       미리보기
                     </Button>
                   </TableCell>
@@ -276,6 +289,75 @@ export default function AdSlotsDetailed() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!previewMaterial} onOpenChange={() => setPreviewMaterial(null)}>
+        <DialogContent className="max-w-3xl" data-testid="dialog-material-preview">
+          <DialogHeader>
+            <DialogTitle>광고 소재 미리보기</DialogTitle>
+            <DialogDescription>
+              {previewMaterial && (
+                <>
+                  {previewMaterial.advertiser} - {previewMaterial.slot}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewMaterial && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-muted-foreground">파일명</Label>
+                  <p className="font-medium">{previewMaterial.fileName}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">상태</Label>
+                  <div className="mt-1">
+                    <Badge variant="outline" className={`${getStatusColor(previewMaterial.status)} border`}>
+                      {previewMaterial.status}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">노출 기간</Label>
+                  <p className="font-medium">
+                    {previewMaterial.startDate} ~ {previewMaterial.endDate}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">집행 금액</Label>
+                  <p className="font-medium font-mono">{previewMaterial.amount}</p>
+                </div>
+              </div>
+
+              <div className="border rounded-md p-4 bg-muted/50">
+                <Label className="text-muted-foreground mb-2 block">소재 이미지</Label>
+                <div className="flex items-center justify-center min-h-[300px] bg-background rounded-md border-2 border-dashed">
+                  <div className="text-center space-y-2">
+                    <FileImage className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      {previewMaterial.fileName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      이미지 미리보기는 실제 소재 업로드 후 표시됩니다
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPreviewMaterial(null)} data-testid="button-close-preview">
+                  닫기
+                </Button>
+                <Button data-testid="button-download">
+                  <Upload className="h-4 w-4 mr-2" />
+                  다운로드
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
