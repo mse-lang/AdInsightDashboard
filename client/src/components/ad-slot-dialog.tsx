@@ -121,11 +121,11 @@ export function AdSlotDialog({ open, onOpenChange, date, events }: AdSlotDialogP
                 </div>
 
                 {bannerImage && (
-                  <div className="mb-3 relative group">
+                  <div className="mb-3 relative group overflow-hidden rounded-md">
                     <img 
                       src={bannerImage} 
                       alt={slot.name}
-                      className="w-full h-auto rounded-md border"
+                      className="w-full h-auto rounded-md border scale-125"
                     />
                     <div className={`absolute inset-0 rounded-md transition-opacity ${
                       occupancyRate >= 100 

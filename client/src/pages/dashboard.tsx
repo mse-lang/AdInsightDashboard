@@ -166,8 +166,14 @@ export default function Dashboard() {
           value={monthlyRevenue}
           icon={DollarSign}
           change={{ value: "12.5%", trend: "up" }}
+          onClick={() => setLocation("/quotes")}
         />
-        <StatCard title="진행 건수" value={totalProgressCount} icon={Calendar} />
+        <StatCard 
+          title="진행 건수" 
+          value={totalProgressCount} 
+          icon={Calendar}
+          onClick={() => setLocation("/analytics")}
+        />
       </div>
 
       <ProgressPipeline stages={mockStages} />
