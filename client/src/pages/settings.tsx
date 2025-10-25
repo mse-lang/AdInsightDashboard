@@ -178,6 +178,10 @@ export default function Settings() {
                 <Input defaultValue="벤처스퀘어" data-testid="input-company-name" />
               </div>
               <div className="space-y-2">
+                <Label>대표이사 이름</Label>
+                <Input placeholder="대표이사 성함을 입력하세요" data-testid="input-ceo-name" />
+              </div>
+              <div className="space-y-2">
                 <Label>대표 이메일</Label>
                 <Input defaultValue="ad@venturesquare.net" data-testid="input-company-email" />
               </div>

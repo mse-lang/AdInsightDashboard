@@ -19,7 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, FileText, ExternalLink } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Trash2, FileText, ExternalLink, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface QuoteItem {
@@ -112,7 +118,9 @@ export default function Quotes() {
     window.open("https://hometax.go.kr/", "_blank");
   };
 
-  const mockQuotes = [
+  const quoteStatuses = ["발송완료", "확정", "재견적"];
+
+  const [mockQuotes, setMockQuotes] = useState([
     {
       id: "1",
       number: "VS-20240115-001",
@@ -129,7 +137,13 @@ export default function Quotes() {
       date: "2024-01-18",
       status: "확정",
     },
-  ];
+  ]);
+
+  const handleQuoteStatusChange = (quoteId: string, newStatus: string) => {
+    setMockQuotes(mockQuotes.map(quote => 
+      quote.id === quoteId ? { ...quote, status: newStatus } : quote
+    ));
+  };
 
   return (
     <div className="space-y-6" data-testid="page-quotes">
@@ -313,14 +327,37 @@ export default function Quotes() {
                 {mockQuotes.map((quote) => (
                   <div
                     key={quote.id}
-                    className="p-3 border rounded-md hover-elevate cursor-pointer"
+                    className="p-3 border rounded-md hover-elevate"
                     data-testid={`card-quote-${quote.id}`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="font-mono text-sm text-muted-foreground">
                         {quote.number}
                       </div>
-                      <Badge variant="outline">{quote.status}</Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-6 px-2"
+                            data-testid={`button-status-${quote.id}`}
+                          >
+                            {quote.status}
+                            <ChevronDown className="ml-1 h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {quoteStatuses.map((status) => (
+                            <DropdownMenuItem
+                              key={status}
+                              onClick={() => handleQuoteStatusChange(quote.id, status)}
+                              data-testid={`status-option-${status}`}
+                            >
+                              {status}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <div className="font-medium">{quote.client}</div>
                     <div className="flex items-center justify-between mt-2">
