@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAdvertiserSchema, insertMemoSchema, insertQuoteSchema } from "@shared/schema";
+import { insertAdvertiserSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/advertisers", async (req, res) => {
@@ -119,6 +119,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/materials", async (req, res) => {
     const materials = await storage.getMaterials();
     res.json(materials);
+  });
+
+  app.get("/api/pricings", async (req, res) => {
+    const pricings = await storage.getPricings();
+    res.json(pricings);
+  });
+
+  app.get("/api/pricings/:key", async (req, res) => {
+    const productKey = req.params.key;
+    const pricing = await storage.getPricingByKey(productKey);
+    
+    if (!pricing) {
+      return res.status(404).json({ error: "Pricing not found" });
+    }
+    
+    res.json(pricing);
+  });
+
+  app.post("/api/pricings", async (req, res) => {
+    try {
+      const data = insertPricingSchema.parse(req.body);
+      const pricing = await storage.createPricing(data);
+      res.json(pricing);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid data" });
+    }
+  });
+
+  app.patch("/api/pricings/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const pricing = await storage.updatePricing(id, req.body);
+    
+    if (!pricing) {
+      return res.status(404).json({ error: "Pricing not found" });
+    }
+    
+    res.json(pricing);
+  });
+
+  app.delete("/api/pricings/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const deleted = await storage.deletePricing(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "Pricing not found" });
+    }
+    
+    res.json({ success: true });
   });
 
   const httpServer = createServer(app);
