@@ -26,14 +26,15 @@ export function ProgressPipeline({ stages }: ProgressPipelineProps) {
       <CardContent>
         <div className="flex flex-wrap gap-2">
           {stages.map((stage) => (
-            <div
+            <button
               key={stage.status}
               onClick={() => handleStageClick(stage.status)}
-              className="cursor-pointer hover-elevate active-elevate-2"
+              className="cursor-pointer hover-elevate active-elevate-2 bg-transparent border-0 p-0"
               data-testid={`pipeline-stage-${stage.status}`}
+              type="button"
             >
               <StatusBadge status={stage.status} count={stage.count} />
-            </div>
+            </button>
           ))}
         </div>
       </CardContent>

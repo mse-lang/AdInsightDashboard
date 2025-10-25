@@ -98,6 +98,8 @@ export default function AdSlotsDetailed() {
     const statusParam = params.get('status');
     if (statusParam && ALL_STATUSES.includes(statusParam as AdStatus)) {
       setSelectedStatus(statusParam as AdStatus);
+    } else {
+      setSelectedStatus(null);
     }
   }, [location]);
 
@@ -327,16 +329,23 @@ export default function AdSlotsDetailed() {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-muted-foreground">상태 필터:</span>
         {ALL_STATUSES.map((status) => (
-          <Badge
+          <button
             key={status}
-            variant={selectedStatus === status ? "default" : "outline"}
-            className={`cursor-pointer hover-elevate ${selectedStatus === status ? getStatusColor(status) : ""}`}
             onClick={() => handleStatusToggle(status)}
+            className="bg-transparent border-0 p-0 cursor-pointer"
             data-testid={`filter-status-${status}`}
+            type="button"
+            aria-pressed={selectedStatus === status}
+            aria-label={`${status} 필터${selectedStatus === status ? ' 활성화됨' : ''}`}
           >
-            {status}
-            {selectedStatus === status && <X className="h-3 w-3 ml-1" />}
-          </Badge>
+            <Badge
+              variant={selectedStatus === status ? "default" : "outline"}
+              className={`hover-elevate ${selectedStatus === status ? getStatusColor(status) : ""}`}
+            >
+              {status}
+              {selectedStatus === status && <X className="h-3 w-3 ml-1" />}
+            </Badge>
+          </button>
         ))}
       </div>
 
