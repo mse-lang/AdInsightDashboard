@@ -32,6 +32,7 @@ import type { Pricing } from "@shared/schema";
 
 interface QuoteItem {
   id: string;
+  productKey: string;
   product: string;
   unitPrice: number;
   quantity: number;
@@ -63,6 +64,7 @@ export default function Quotes() {
       ...items,
       {
         id: Date.now().toString(),
+        productKey: "",
         product: "",
         unitPrice: 0,
         quantity: 1,
@@ -85,6 +87,7 @@ export default function Quotes() {
   const selectProduct = (id: string, productKey: string) => {
     const pricing = pricings.find((p) => p.productKey === productKey);
     if (pricing) {
+      updateItem(id, "productKey", productKey);
       updateItem(id, "product", pricing.productName);
       updateItem(id, "unitPrice", parseInt(pricing.price));
     }
@@ -190,7 +193,7 @@ export default function Quotes() {
                       <TableRow key={item.id}>
                         <TableCell>
                           <Select
-                            value={item.product}
+                            value={item.productKey}
                             onValueChange={(value) => selectProduct(item.id, value)}
                           >
                             <SelectTrigger data-testid={`select-product-${item.id}`}>
