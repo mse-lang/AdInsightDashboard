@@ -13,8 +13,12 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { UserPlus, Trash2, Shield } from "lucide-react";
+import { UserPlus, Trash2, Shield, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Pricing } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface User {
   id: string;
@@ -26,6 +30,7 @@ interface User {
 }
 
 export default function Settings() {
+  const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([
     {
       id: "1",
@@ -52,6 +57,53 @@ export default function Settings() {
       lastLogin: "2024-01-20 16:45",
     },
   ]);
+
+  const { data: pricings = [], isLoading: pricingsLoading } = useQuery<Pricing[]>({
+    queryKey: ["/api/pricings"],
+  });
+
+  const [editedPricings, setEditedPricings] = useState<Record<number, Partial<Pricing>>>({});
+
+  const updatePricingMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Pricing> }) => {
+      return await apiRequest(`/api/pricings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricings"] });
+      setEditedPricings({});
+      toast({
+        title: "단가 업데이트 완료",
+        description: "단가표가 성공적으로 업데이트되었습니다.",
+      });
+    },
+  });
+
+  const handlePricingEdit = (id: number, field: keyof Pricing, value: string) => {
+    setEditedPricings(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: value,
+      }
+    }));
+  };
+
+  const handleSavePricing = (id: number) => {
+    const edits = editedPricings[id];
+    if (edits) {
+      updatePricingMutation.mutate({ id, data: edits });
+    }
+  };
+
+  const formatCurrency = (value: string) => {
+    const num = parseInt(value.replace(/[^0-9]/g, ''));
+    if (isNaN(num)) return value;
+    return `₩${num.toLocaleString()}`;
+  };
 
   const toggleUserStatus = (id: string) => {
     setUsers(
@@ -97,6 +149,7 @@ export default function Settings() {
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList>
           <TabsTrigger value="users" data-testid="tab-users">사용자 관리</TabsTrigger>
+          <TabsTrigger value="pricing" data-testid="tab-pricing">단가 관리</TabsTrigger>
           <TabsTrigger value="general" data-testid="tab-general">일반 설정</TabsTrigger>
           <TabsTrigger value="notifications" data-testid="tab-notifications">알림 설정</TabsTrigger>
         </TabsList>
@@ -163,6 +216,88 @@ export default function Settings() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pricing" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>광고 상품 단가표</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  광고 상품별 기준 단가를 관리하세요
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {pricingsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">로딩중...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>상품명</TableHead>
+                      <TableHead>규격/특징</TableHead>
+                      <TableHead>설명</TableHead>
+                      <TableHead>단가</TableHead>
+                      <TableHead className="text-right">액션</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pricings.map((pricing) => {
+                      const isEdited = !!editedPricings[pricing.id];
+                      const currentPrice = editedPricings[pricing.id]?.price || pricing.price;
+                      const currentSpecs = editedPricings[pricing.id]?.specs || pricing.specs || "";
+                      const currentDescription = editedPricings[pricing.id]?.description || pricing.description || "";
+
+                      return (
+                        <TableRow key={pricing.id} data-testid={`row-pricing-${pricing.id}`}>
+                          <TableCell className="font-medium">{pricing.productName}</TableCell>
+                          <TableCell>
+                            <Input
+                              value={currentSpecs}
+                              onChange={(e) => handlePricingEdit(pricing.id, "specs", e.target.value)}
+                              className="text-sm"
+                              data-testid={`input-specs-${pricing.id}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={currentDescription}
+                              onChange={(e) => handlePricingEdit(pricing.id, "description", e.target.value)}
+                              className="text-sm"
+                              data-testid={`input-description-${pricing.id}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={formatCurrency(currentPrice)}
+                              onChange={(e) => {
+                                const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                                handlePricingEdit(pricing.id, "price", numericValue);
+                              }}
+                              className="font-mono"
+                              data-testid={`input-price-${pricing.id}`}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSavePricing(pricing.id)}
+                              disabled={!isEdited || updatePricingMutation.isPending}
+                              data-testid={`button-save-pricing-${pricing.id}`}
+                            >
+                              <Save className="h-4 w-4 mr-2" />
+                              저장
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Plus, Trash2, FileText, ExternalLink, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import type { Pricing } from "@shared/schema";
 
 interface QuoteItem {
   id: string;
@@ -35,16 +37,10 @@ interface QuoteItem {
   quantity: number;
 }
 
-const adSlotProducts = [
-  { value: "main-banner", label: "메인배너", defaultPrice: 1000000 },
-  { value: "side-banner-1", label: "사이드배너 1", defaultPrice: 500000 },
-  { value: "side-banner-2", label: "사이드배너 2", defaultPrice: 500000 },
-  { value: "side-banner-3", label: "사이드배너 3", defaultPrice: 500000 },
-  { value: "newsletter-banner", label: "뉴스레터 배너", defaultPrice: 800000 },
-  { value: "edm-full", label: "eDM 전체 이미지", defaultPrice: 1200000 },
-];
-
 export default function Quotes() {
+  const { data: pricings = [] } = useQuery<Pricing[]>({
+    queryKey: ["/api/pricings"],
+  });
   const [quoteNumber] = useState(() => {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
@@ -86,11 +82,11 @@ export default function Quotes() {
     );
   };
 
-  const selectProduct = (id: string, productValue: string) => {
-    const product = adSlotProducts.find((p) => p.value === productValue);
-    if (product) {
-      updateItem(id, "product", product.label);
-      updateItem(id, "unitPrice", product.defaultPrice);
+  const selectProduct = (id: string, productKey: string) => {
+    const pricing = pricings.find((p) => p.productKey === productKey);
+    if (pricing) {
+      updateItem(id, "product", pricing.productName);
+      updateItem(id, "unitPrice", parseInt(pricing.price));
     }
   };
 
@@ -201,9 +197,9 @@ export default function Quotes() {
                               <SelectValue placeholder="품목 선택" />
                             </SelectTrigger>
                             <SelectContent>
-                              {adSlotProducts.map((product) => (
-                                <SelectItem key={product.value} value={product.value}>
-                                  {product.label}
+                              {pricings.map((pricing) => (
+                                <SelectItem key={pricing.productKey} value={pricing.productKey}>
+                                  {pricing.productName} - {formatCurrency(parseInt(pricing.price))}
                                 </SelectItem>
                               ))}
                             </SelectContent>
