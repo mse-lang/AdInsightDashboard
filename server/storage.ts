@@ -215,28 +215,28 @@ export class MemStorage implements IStorage {
 
   private initializeAdMaterials() {
     const materials = [
-      { advertiserId: 1, slotId: 1, fileName: "main_banner_tech.jpg", startDate: "2024-10-01", endDate: "2024-10-31", amount: "2400000", status: "집행중" },
-      { advertiserId: 2, slotId: 1, fileName: "main_banner_ecom.jpg", startDate: "2024-10-15", endDate: "2024-11-14", amount: "2400000", status: "집행중" },
-      { advertiserId: 5, slotId: 1, fileName: "main_banner_health.jpg", startDate: "2024-11-01", endDate: "2024-11-30", amount: "2400000", status: "부킹확정" },
-      { advertiserId: 6, slotId: 1, fileName: "main_banner_mobility.jpg", startDate: "2024-10-20", endDate: "2024-11-19", amount: "2400000", status: "집행중" },
+      { advertiserId: 1, slotId: 1, fileName: "main_banner_tech.jpg", startDate: "2025-10-01", endDate: "2025-10-31", amount: "2400000", status: "집행중" },
+      { advertiserId: 2, slotId: 1, fileName: "main_banner_ecom.jpg", startDate: "2025-10-15", endDate: "2025-11-14", amount: "2400000", status: "집행중" },
+      { advertiserId: 5, slotId: 1, fileName: "main_banner_health.jpg", startDate: "2025-11-01", endDate: "2025-11-30", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 6, slotId: 1, fileName: "main_banner_mobility.jpg", startDate: "2025-10-20", endDate: "2025-11-19", amount: "2400000", status: "집행중" },
       
-      { advertiserId: 7, slotId: 2, fileName: "side1_edutech.jpg", startDate: "2024-10-10", endDate: "2024-11-09", amount: "2400000", status: "부킹확정" },
-      { advertiserId: 9, slotId: 2, fileName: "side1_cloud.jpg", startDate: "2024-10-25", endDate: "2024-11-24", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 7, slotId: 2, fileName: "side1_edutech.jpg", startDate: "2025-10-10", endDate: "2025-11-09", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 9, slotId: 2, fileName: "side1_cloud.jpg", startDate: "2025-10-25", endDate: "2025-11-24", amount: "2400000", status: "부킹확정" },
       
-      { advertiserId: 2, slotId: 3, fileName: "side2_ecom.jpg", startDate: "2024-10-05", endDate: "2024-11-04", amount: "1500000", status: "집행중" },
-      { advertiserId: 11, slotId: 3, fileName: "side2_iot.jpg", startDate: "2024-10-18", endDate: "2024-11-17", amount: "1500000", status: "집행중" },
+      { advertiserId: 2, slotId: 3, fileName: "side2_ecom.jpg", startDate: "2025-10-05", endDate: "2025-11-04", amount: "1500000", status: "집행중" },
+      { advertiserId: 11, slotId: 3, fileName: "side2_iot.jpg", startDate: "2025-10-18", endDate: "2025-11-17", amount: "1500000", status: "집행중" },
       
-      { advertiserId: 8, slotId: 4, fileName: "side3_foodtech.jpg", startDate: "2024-10-12", endDate: "2024-11-11", amount: "750000", status: "집행중" },
-      { advertiserId: 16, slotId: 4, fileName: "side3_green.jpg", startDate: "2024-10-22", endDate: "2024-11-21", amount: "750000", status: "집행중" },
+      { advertiserId: 8, slotId: 4, fileName: "side3_foodtech.jpg", startDate: "2025-10-12", endDate: "2025-11-11", amount: "750000", status: "집행중" },
+      { advertiserId: 16, slotId: 4, fileName: "side3_green.jpg", startDate: "2025-10-22", endDate: "2025-11-21", amount: "750000", status: "집행중" },
       
-      { advertiserId: 13, slotId: 5, fileName: "newsletter_biotech.jpg", startDate: "2024-10-08", endDate: "2024-11-07", amount: "500000", status: "부킹확정" },
+      { advertiserId: 13, slotId: 5, fileName: "newsletter_biotech.jpg", startDate: "2025-10-08", endDate: "2025-11-07", amount: "500000", status: "부킹확정" },
       
-      { advertiserId: 14, slotId: 6, fileName: "edm_gamedev.jpg", startDate: "2024-10-28", endDate: "2024-11-27", amount: "1200000", status: "집행중" },
+      { advertiserId: 14, slotId: 6, fileName: "edm_gamedev.jpg", startDate: "2025-10-28", endDate: "2025-11-27", amount: "1200000", status: "집행중" },
       
-      { advertiserId: 1, slotId: 2, fileName: "side1_tech.jpg", startDate: "2024-11-05", endDate: "2024-12-04", amount: "2400000", status: "부킹확정" },
-      { advertiserId: 4, slotId: 1, fileName: "main_banner_ai.jpg", startDate: "2024-11-10", endDate: "2024-12-09", amount: "2400000", status: "부킹확정" },
-      { advertiserId: 17, slotId: 2, fileName: "side1_smarthome.jpg", startDate: "2024-11-15", endDate: "2024-12-14", amount: "2400000", status: "부킹확정" },
-      { advertiserId: 20, slotId: 1, fileName: "main_banner_cyber.jpg", startDate: "2024-12-01", endDate: "2024-12-31", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 1, slotId: 2, fileName: "side1_tech.jpg", startDate: "2025-11-05", endDate: "2025-12-04", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 4, slotId: 1, fileName: "main_banner_ai.jpg", startDate: "2025-11-10", endDate: "2025-12-09", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 17, slotId: 2, fileName: "side1_smarthome.jpg", startDate: "2025-11-15", endDate: "2025-12-14", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 20, slotId: 1, fileName: "main_banner_cyber.jpg", startDate: "2025-12-01", endDate: "2025-12-31", amount: "2400000", status: "부킹확정" },
     ];
 
     materials.forEach(material => {
