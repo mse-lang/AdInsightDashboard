@@ -40,10 +40,10 @@ export default function AdSlots() {
     {
       id: "5",
       name: "뉴스레터 배너",
-      maxSlots: 1,
-      currentSlots: 1,
+      maxSlots: 3,
+      currentSlots: 2,
       price: "₩800,000",
-      status: "full" as const,
+      status: "partial" as const,
     },
     {
       id: "6",
