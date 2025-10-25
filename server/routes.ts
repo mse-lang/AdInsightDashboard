@@ -139,6 +139,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(materials);
   });
 
+  app.get("/api/calendar/ad-materials", async (req, res) => {
+    const materials = await storage.getAdMaterials();
+    const advertisers = await storage.getAdvertisers();
+    const slots = await storage.getAdSlots();
+    
+    const enrichedMaterials = materials.map(material => {
+      const advertiser = advertisers.find(a => a.id === material.advertiserId);
+      const slot = slots.find(s => s.id === material.slotId);
+      
+      return {
+        id: material.id.toString(),
+        advertiser: advertiser?.name || "알 수 없음",
+        advertiserId: material.advertiserId,
+        slot: slot?.name || "알 수 없음",
+        slotId: material.slotId,
+        fileName: material.fileName,
+        startDate: material.startDate,
+        endDate: material.endDate,
+        amount: material.amount,
+        status: material.status as "부킹확정" | "집행중",
+      };
+    });
+    
+    res.json(enrichedMaterials);
+  });
+
   app.get("/api/quotes", async (req, res) => {
     const quotes = await storage.getQuotes();
     res.json(quotes);

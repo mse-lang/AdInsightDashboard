@@ -118,6 +118,21 @@ export class MemStorage implements IStorage {
       { name: "핀테크솔루션", businessNumber: "345-67-89012", ceoName: "박대표", status: "문의중", inquiryDate: "2024-02-10", amount: null },
       { name: "AI플랫폼", businessNumber: "456-78-90123", ceoName: "최대표", status: "견적제시", inquiryDate: "2024-02-15", amount: "2400000" },
       { name: "헬스케어스타트업", businessNumber: "567-89-01234", ceoName: "정대표", status: "집행중", inquiryDate: "2024-01-20", amount: "3900000" },
+      { name: "모빌리티솔루션", businessNumber: "678-90-12345", ceoName: "강대표", status: "집행중", inquiryDate: "2024-01-25", amount: "2400000" },
+      { name: "에듀테크코리아", businessNumber: "789-01-23456", ceoName: "윤대표", status: "부킹확정", inquiryDate: "2024-02-05", amount: "1500000" },
+      { name: "푸드테크벤처스", businessNumber: "890-12-34567", ceoName: "송대표", status: "집행중", inquiryDate: "2024-02-12", amount: "750000" },
+      { name: "클라우드서비스", businessNumber: "901-23-45678", ceoName: "임대표", status: "부킹확정", inquiryDate: "2024-02-18", amount: "2400000" },
+      { name: "블록체인랩", businessNumber: "012-34-56789", ceoName: "한대표", status: "문의중", inquiryDate: "2024-02-20", amount: null },
+      { name: "IoT솔루션즈", businessNumber: "123-56-78901", ceoName: "오대표", status: "집행중", inquiryDate: "2024-01-30", amount: "1500000" },
+      { name: "로보틱스인더스트리", businessNumber: "234-67-89012", ceoName: "서대표", status: "견적제시", inquiryDate: "2024-02-22", amount: "3900000" },
+      { name: "바이오테크연구소", businessNumber: "345-78-90123", ceoName: "권대표", status: "부킹확정", inquiryDate: "2024-02-08", amount: "500000" },
+      { name: "게임개발스튜디오", businessNumber: "456-89-01234", ceoName: "남대표", status: "집행중", inquiryDate: "2024-01-28", amount: "2400000" },
+      { name: "패션테크컴퍼니", businessNumber: "567-90-12345", ceoName: "유대표", status: "집행완료", inquiryDate: "2024-01-10", amount: "1500000" },
+      { name: "그린에너지", businessNumber: "678-01-23456", ceoName: "홍대표", status: "집행중", inquiryDate: "2024-02-14", amount: "750000" },
+      { name: "스마트홈솔루션", businessNumber: "789-12-34567", ceoName: "신대표", status: "부킹확정", inquiryDate: "2024-02-16", amount: "2400000" },
+      { name: "VR엔터테인먼트", businessNumber: "890-23-45678", ceoName: "조대표", status: "문의중", inquiryDate: "2024-02-24", amount: null },
+      { name: "드론테크놀로지", businessNumber: "901-34-56789", ceoName: "배대표", status: "견적제시", inquiryDate: "2024-02-26", amount: "1200000" },
+      { name: "사이버보안", businessNumber: "012-45-67890", ceoName: "노대표", status: "집행중", inquiryDate: "2024-02-03", amount: "2400000" },
     ];
 
     const testContacts = [
@@ -126,6 +141,21 @@ export class MemStorage implements IStorage {
       { name: "박담당", email: "park@fintech.com", phone: "010-3456-7890", position: "사업개발", isPrimary: true },
       { name: "최담당", email: "choi@aiplatform.com", phone: "010-4567-8901", position: "마케팅매니저", isPrimary: true },
       { name: "정담당", email: "jung@healthcare.com", phone: "010-5678-9012", position: "광고담당", isPrimary: true },
+      { name: "강담당", email: "kang@mobility.com", phone: "010-6789-0123", position: "마케팅팀장", isPrimary: true },
+      { name: "윤담당", email: "yoon@edutech.com", phone: "010-7890-1234", position: "홍보담당", isPrimary: true },
+      { name: "송담당", email: "song@foodtech.com", phone: "010-8901-2345", position: "브랜드매니저", isPrimary: true },
+      { name: "임담당", email: "lim@cloud.com", phone: "010-9012-3456", position: "마케팅이사", isPrimary: true },
+      { name: "한담당", email: "han@blockchain.com", phone: "010-0123-4567", position: "사업개발", isPrimary: true },
+      { name: "오담당", email: "oh@iot.com", phone: "010-1235-6789", position: "마케팅부장", isPrimary: true },
+      { name: "서담당", email: "seo@robotics.com", phone: "010-2346-7890", position: "홍보팀장", isPrimary: true },
+      { name: "권담당", email: "kwon@biotech.com", phone: "010-3457-8901", position: "마케팅담당", isPrimary: true },
+      { name: "남담당", email: "nam@gamedev.com", phone: "010-4568-9012", position: "광고팀장", isPrimary: true },
+      { name: "유담당", email: "yoo@fashiontech.com", phone: "010-5679-0123", position: "홍보이사", isPrimary: true },
+      { name: "홍담당", email: "hong@greenenergy.com", phone: "010-6780-1234", position: "마케팅팀장", isPrimary: true },
+      { name: "신담당", email: "shin@smarthome.com", phone: "010-7891-2345", position: "브랜드담당", isPrimary: true },
+      { name: "조담당", email: "cho@vrent.com", phone: "010-8902-3456", position: "사업개발", isPrimary: true },
+      { name: "배담당", email: "bae@drone.com", phone: "010-9013-4567", position: "마케팅이사", isPrimary: true },
+      { name: "노담당", email: "noh@cybersec.com", phone: "010-0124-5678", position: "홍보팀장", isPrimary: true },
     ];
 
     testAdvertisers.forEach((data, index) => {
@@ -154,6 +184,74 @@ export class MemStorage implements IStorage {
         updatedAt: new Date(),
       };
       this.contacts.push(contact);
+    });
+
+    this.initializeAdSlots();
+    this.initializeAdMaterials();
+  }
+
+  private initializeAdSlots() {
+    const slots = [
+      { name: "메인배너", type: "banner", maxSlots: 8, price: "2400000", description: "PC: 1900×400px, Mobile: 720×520px" },
+      { name: "사이드배너1", type: "banner", maxSlots: 4, price: "2400000", description: "600×300px, 로고만 운영" },
+      { name: "사이드배너2", type: "banner", maxSlots: 4, price: "1500000", description: "300×250px" },
+      { name: "사이드배너3", type: "banner", maxSlots: 4, price: "750000", description: "300×250px, 위드배너" },
+      { name: "뉴스레터배너", type: "newsletter", maxSlots: 3, price: "500000", description: "뉴스레터 TOP/MIDDLE/BOTTOM" },
+      { name: "eDM", type: "newsletter", maxSlots: 1, price: "1200000", description: "뉴스레터 eDM 전면광고" },
+    ];
+
+    slots.forEach(slot => {
+      this.adSlots.push({
+        id: this.nextAdSlotId++,
+        name: slot.name,
+        type: slot.type,
+        maxSlots: slot.maxSlots,
+        price: slot.price,
+        description: slot.description,
+        createdAt: new Date(),
+      });
+    });
+  }
+
+  private initializeAdMaterials() {
+    const materials = [
+      { advertiserId: 1, slotId: 1, fileName: "main_banner_tech.jpg", startDate: "2024-10-01", endDate: "2024-10-31", amount: "2400000", status: "집행중" },
+      { advertiserId: 2, slotId: 1, fileName: "main_banner_ecom.jpg", startDate: "2024-10-15", endDate: "2024-11-14", amount: "2400000", status: "집행중" },
+      { advertiserId: 5, slotId: 1, fileName: "main_banner_health.jpg", startDate: "2024-11-01", endDate: "2024-11-30", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 6, slotId: 1, fileName: "main_banner_mobility.jpg", startDate: "2024-10-20", endDate: "2024-11-19", amount: "2400000", status: "집행중" },
+      
+      { advertiserId: 7, slotId: 2, fileName: "side1_edutech.jpg", startDate: "2024-10-10", endDate: "2024-11-09", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 9, slotId: 2, fileName: "side1_cloud.jpg", startDate: "2024-10-25", endDate: "2024-11-24", amount: "2400000", status: "부킹확정" },
+      
+      { advertiserId: 2, slotId: 3, fileName: "side2_ecom.jpg", startDate: "2024-10-05", endDate: "2024-11-04", amount: "1500000", status: "집행중" },
+      { advertiserId: 11, slotId: 3, fileName: "side2_iot.jpg", startDate: "2024-10-18", endDate: "2024-11-17", amount: "1500000", status: "집행중" },
+      
+      { advertiserId: 8, slotId: 4, fileName: "side3_foodtech.jpg", startDate: "2024-10-12", endDate: "2024-11-11", amount: "750000", status: "집행중" },
+      { advertiserId: 16, slotId: 4, fileName: "side3_green.jpg", startDate: "2024-10-22", endDate: "2024-11-21", amount: "750000", status: "집행중" },
+      
+      { advertiserId: 13, slotId: 5, fileName: "newsletter_biotech.jpg", startDate: "2024-10-08", endDate: "2024-11-07", amount: "500000", status: "부킹확정" },
+      
+      { advertiserId: 14, slotId: 6, fileName: "edm_gamedev.jpg", startDate: "2024-10-28", endDate: "2024-11-27", amount: "1200000", status: "집행중" },
+      
+      { advertiserId: 1, slotId: 2, fileName: "side1_tech.jpg", startDate: "2024-11-05", endDate: "2024-12-04", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 4, slotId: 1, fileName: "main_banner_ai.jpg", startDate: "2024-11-10", endDate: "2024-12-09", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 17, slotId: 2, fileName: "side1_smarthome.jpg", startDate: "2024-11-15", endDate: "2024-12-14", amount: "2400000", status: "부킹확정" },
+      { advertiserId: 20, slotId: 1, fileName: "main_banner_cyber.jpg", startDate: "2024-12-01", endDate: "2024-12-31", amount: "2400000", status: "부킹확정" },
+    ];
+
+    materials.forEach(material => {
+      this.adMaterials.push({
+        id: this.nextAdMaterialId++,
+        advertiserId: material.advertiserId,
+        slotId: material.slotId,
+        fileName: material.fileName,
+        fileUrl: `/uploads/${material.fileName}`,
+        startDate: material.startDate,
+        endDate: material.endDate,
+        amount: material.amount,
+        status: material.status,
+        createdAt: new Date(),
+      });
     });
   }
 
