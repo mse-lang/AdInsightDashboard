@@ -5,8 +5,6 @@ import { z } from "zod";
 export const advertisers = pgTable("advertisers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  contact: text("contact").notNull(),
-  email: text("email").notNull(),
   businessNumber: text("business_number"),
   ceoName: text("ceo_name"),
   status: text("status").notNull().default("문의중"),
@@ -27,6 +25,25 @@ export const insertAdvertiserSchema = createInsertSchema(advertisers).omit({
 
 export type InsertAdvertiser = z.infer<typeof insertAdvertiserSchema>;
 export type Advertiser = typeof advertisers.$inferSelect;
+
+export const contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  advertiserId: integer("advertiser_id").notNull().references(() => advertisers.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  position: text("position"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContactSchema = createInsertSchema(contacts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type Contact = typeof contacts.$inferSelect;
 
 export const memos = pgTable("memos", {
   id: serial("id").primaryKey(),

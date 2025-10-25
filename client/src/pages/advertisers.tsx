@@ -2,7 +2,7 @@ import { AdvertiserTable } from "@/components/advertiser-table";
 import { AddAdvertiserDialog } from "@/components/add-advertiser-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Advertiser } from "@shared/schema";
+import type { Advertiser, Contact } from "@shared/schema";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo, useEffect, useState } from "react";
@@ -21,6 +21,22 @@ export default function Advertisers() {
   
   const { data: advertisers = [], isLoading } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const { data: allContacts = [] } = useQuery<Record<number, Contact[]>>({
+    queryKey: ["/api/contacts/all"],
+    queryFn: async () => {
+      const contactsByAdvertiser: Record<number, Contact[]> = {};
+      
+      for (const advertiser of advertisers) {
+        const res = await fetch(`/api/advertisers/${advertiser.id}/contacts`);
+        const contacts = await res.json();
+        contactsByAdvertiser[advertiser.id] = contacts;
+      }
+      
+      return contactsByAdvertiser;
+    },
+    enabled: advertisers.length > 0,
   });
 
   const updateStatusMutation = useMutation({
@@ -58,15 +74,20 @@ export default function Advertisers() {
     return advertisers;
   }, [advertisers, filterType]);
 
-  const mappedAdvertisers = filteredAdvertisers.map((adv) => ({
-    id: adv.id.toString(),
-    name: adv.name,
-    contact: adv.contact,
-    email: adv.email,
-    status: adv.status as any,
-    amount: adv.amount ? `₩${parseInt(adv.amount).toLocaleString()}` : "₩0",
-    date: adv.inquiryDate,
-  }));
+  const mappedAdvertisers = filteredAdvertisers.map((adv) => {
+    const contacts = allContacts[adv.id] || [];
+    const primaryContact = contacts.find(c => c.isPrimary) || contacts[0];
+    
+    return {
+      id: adv.id.toString(),
+      name: adv.name,
+      contact: primaryContact?.name || "-",
+      email: primaryContact?.email || "-",
+      status: adv.status as any,
+      amount: adv.amount ? `₩${parseInt(adv.amount).toLocaleString()}` : "₩0",
+      date: adv.inquiryDate,
+    };
+  });
 
   const clearFilter = () => {
     setFilterType(null);

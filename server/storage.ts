@@ -1,6 +1,8 @@
 import type { 
   Advertiser, 
   InsertAdvertiser,
+  Contact,
+  InsertContact,
   Memo,
   InsertMemo,
   AdSlot,
@@ -21,6 +23,11 @@ export interface IStorage {
   createAdvertiser(data: InsertAdvertiser): Promise<Advertiser>;
   updateAdvertiser(id: number, data: Partial<InsertAdvertiser>): Promise<Advertiser | undefined>;
   deleteAdvertiser(id: number): Promise<boolean>;
+  
+  getContactsByAdvertiserId(advertiserId: number): Promise<Contact[]>;
+  createContact(data: InsertContact): Promise<Contact>;
+  updateContact(id: number, data: Partial<InsertContact>): Promise<Contact | undefined>;
+  deleteContact(id: number): Promise<boolean>;
   
   getMemosByAdvertiserId(advertiserId: number): Promise<Memo[]>;
   createMemo(data: InsertMemo): Promise<Memo>;
@@ -55,6 +62,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private advertisers: Advertiser[] = [];
+  private contacts: Contact[] = [];
   private memos: Memo[] = [];
   private adSlots: AdSlot[] = [];
   private adMaterials: AdMaterial[] = [];
@@ -63,6 +71,7 @@ export class MemStorage implements IStorage {
   private pricings: Pricing[] = [];
   
   private nextAdvertiserId = 1;
+  private nextContactId = 1;
   private nextMemoId = 1;
   private nextAdSlotId = 1;
   private nextAdMaterialId = 1;
@@ -113,8 +122,6 @@ export class MemStorage implements IStorage {
     const advertiser: Advertiser = {
       id: this.nextAdvertiserId++,
       name: data.name,
-      contact: data.contact,
-      email: data.email,
       businessNumber: data.businessNumber || null,
       ceoName: data.ceoName || null,
       status: data.status || "문의중",
@@ -147,6 +154,7 @@ export class MemStorage implements IStorage {
     if (index === -1) return false;
     
     this.advertisers.splice(index, 1);
+    this.contacts = this.contacts.filter(c => c.advertiserId !== id);
     return true;
   }
 
@@ -171,6 +179,44 @@ export class MemStorage implements IStorage {
     if (index === -1) return false;
     
     this.memos.splice(index, 1);
+    return true;
+  }
+
+  async getContactsByAdvertiserId(advertiserId: number): Promise<Contact[]> {
+    return this.contacts.filter(c => c.advertiserId === advertiserId);
+  }
+
+  async createContact(data: InsertContact): Promise<Contact> {
+    const contact: Contact = {
+      id: this.nextContactId++,
+      advertiserId: data.advertiserId,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      position: data.position || null,
+      isPrimary: data.isPrimary || false,
+      createdAt: new Date(),
+    };
+    this.contacts.push(contact);
+    return contact;
+  }
+
+  async updateContact(id: number, data: Partial<InsertContact>): Promise<Contact | undefined> {
+    const index = this.contacts.findIndex(c => c.id === id);
+    if (index === -1) return undefined;
+    
+    this.contacts[index] = {
+      ...this.contacts[index],
+      ...data,
+    };
+    return this.contacts[index];
+  }
+
+  async deleteContact(id: number): Promise<boolean> {
+    const index = this.contacts.findIndex(c => c.id === id);
+    if (index === -1) return false;
+    
+    this.contacts.splice(index, 1);
     return true;
   }
 

@@ -21,10 +21,12 @@ import {
 import { Plus, Upload, Calendar, FileImage, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
+import { useQuery } from "@tanstack/react-query";
+import type { Advertiser } from "@shared/schema";
 
 interface AdMaterial {
   id: string;
-  advertiser: string;
+  advertiserId: string;
   slot: string;
   fileName: string;
   startDate: string;
@@ -38,6 +40,15 @@ type SlotStatus = "available" | "partial" | "full";
 export default function AdSlotsDetailed() {
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<AdMaterial | null>(null);
+
+  const { data: advertisers = [] } = useQuery<Advertiser[]>({
+    queryKey: ["/api/advertisers"],
+  });
+
+  const getAdvertiserName = (advertiserId: string): string => {
+    const advertiser = advertisers.find(a => a.id.toString() === advertiserId);
+    return advertiser?.name || "알 수 없음";
+  };
 
   const mockSlots: Array<{
     id: string;
@@ -77,10 +88,10 @@ export default function AdSlotsDetailed() {
     },
   ];
 
-  const mockMaterials: AdMaterial[] = [
+  const mockMaterials: AdMaterial[] = advertisers.length > 0 ? [
     {
       id: "1",
-      advertiser: "테크스타트업",
+      advertiserId: advertisers[0]?.id.toString() || "1",
       slot: "메인배너",
       fileName: "banner_tech_2024.jpg",
       startDate: "2024-01-15",
@@ -90,7 +101,7 @@ export default function AdSlotsDetailed() {
     },
     {
       id: "2",
-      advertiser: "이커머스컴퍼니",
+      advertiserId: advertisers[1]?.id.toString() || "2",
       slot: "메인배너",
       fileName: "ecom_banner.png",
       startDate: "2024-02-01",
@@ -100,7 +111,7 @@ export default function AdSlotsDetailed() {
     },
     {
       id: "3",
-      advertiser: "핀테크솔루션",
+      advertiserId: advertisers[2]?.id.toString() || "3",
       slot: "사이드배너 2",
       fileName: "fintech_side.jpg",
       startDate: "2024-01-01",
@@ -108,7 +119,7 @@ export default function AdSlotsDetailed() {
       amount: "₩500,000",
       status: "종료",
     },
-  ];
+  ] : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -220,7 +231,7 @@ export default function AdSlotsDetailed() {
             <TableBody>
               {mockMaterials.map((material) => (
                 <TableRow key={material.id} data-testid={`row-material-${material.id}`}>
-                  <TableCell className="font-medium">{material.advertiser}</TableCell>
+                  <TableCell className="font-medium">{getAdvertiserName(material.advertiserId)}</TableCell>
                   <TableCell>{material.slot}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -297,7 +308,7 @@ export default function AdSlotsDetailed() {
             <DialogDescription>
               {previewMaterial && (
                 <>
-                  {previewMaterial.advertiser} - {previewMaterial.slot}
+                  {getAdvertiserName(previewMaterial.advertiserId)} - {previewMaterial.slot}
                 </>
               )}
             </DialogDescription>

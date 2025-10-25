@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAdvertiserSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema } from "@shared/schema";
+import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/advertisers", async (req, res) => {
@@ -83,6 +83,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const advertiserId = parseInt(req.params.id);
     const memos = await storage.getMemosByAdvertiserId(advertiserId);
     res.json(memos);
+  });
+
+  app.get("/api/advertisers/:id/contacts", async (req, res) => {
+    const advertiserId = parseInt(req.params.id);
+    const contacts = await storage.getContactsByAdvertiserId(advertiserId);
+    res.json(contacts);
+  });
+
+  app.post("/api/contacts", async (req, res) => {
+    try {
+      const data = insertContactSchema.parse(req.body);
+      const contact = await storage.createContact(data);
+      res.json(contact);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid data" });
+    }
+  });
+
+  app.patch("/api/contacts/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const contact = await storage.updateContact(id, req.body);
+    
+    if (!contact) {
+      return res.status(404).json({ error: "Contact not found" });
+    }
+    
+    res.json(contact);
+  });
+
+  app.delete("/api/contacts/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const deleted = await storage.deleteContact(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "Contact not found" });
+    }
+    
+    res.json({ success: true });
   });
 
   app.get("/api/ad-slots", async (req, res) => {

@@ -33,11 +33,14 @@ import {
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { AdStatus } from "./status-badge";
+import type { InsertAdvertiser, InsertContact } from "@shared/schema";
 
 const advertiserSchema = z.object({
   name: z.string().min(2, "광고주명을 입력해주세요"),
-  contact: z.string().min(10, "연락처를 입력해주세요"),
-  email: z.string().email("올바른 이메일 주소를 입력해주세요"),
+  contactName: z.string().min(2, "담당자명을 입력해주세요"),
+  contactPhone: z.string().min(10, "연락처를 입력해주세요"),
+  contactEmail: z.string().email("올바른 이메일 주소를 입력해주세요"),
+  contactPosition: z.string().optional(),
   businessNumber: z.string().optional(),
   ceoName: z.string().optional(),
   status: z.string(),
@@ -69,8 +72,10 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
     resolver: zodResolver(advertiserSchema),
     defaultValues: {
       name: "",
-      contact: "",
-      email: "",
+      contactName: "",
+      contactPhone: "",
+      contactEmail: "",
+      contactPosition: "",
       businessNumber: "",
       ceoName: "",
       status: "문의중",
@@ -80,10 +85,37 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
 
   const createAdvertiserMutation = useMutation({
     mutationFn: async (data: AdvertiserFormData) => {
-      return await apiRequest("POST", "/api/advertisers", data);
+      const advertiserData: InsertAdvertiser = {
+        name: data.name,
+        businessNumber: data.businessNumber,
+        ceoName: data.ceoName,
+        status: data.status,
+        inquiryDate: data.inquiryDate,
+      };
+      
+      const res = await apiRequest("POST", "/api/advertisers", advertiserData);
+      const advertiser = await res.json();
+      
+      try {
+        const contactData: InsertContact = {
+          advertiserId: advertiser.id,
+          name: data.contactName,
+          email: data.contactEmail,
+          phone: data.contactPhone,
+          position: data.contactPosition,
+          isPrimary: true,
+        };
+        
+        await apiRequest("POST", "/api/contacts", contactData);
+        return advertiser;
+      } catch (error) {
+        await apiRequest("DELETE", `/api/advertisers/${advertiser.id}`, undefined);
+        throw new Error("담당자 정보 저장 실패. 광고주 추가를 롤백했습니다.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/advertisers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/all"] });
       toast({
         title: "광고주 추가 완료",
         description: "새로운 광고주가 추가되었습니다.",
@@ -102,7 +134,6 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
 
   const onSubmit = (data: AdvertiserFormData) => {
     createAdvertiserMutation.mutate(data);
-    onAdd?.(data);
   };
 
   return (
@@ -150,39 +181,73 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="contact"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>연락처 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="010-1234-5678" {...field} data-testid="input-contact" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-4 p-4 border rounded-md">
+              <Label className="font-semibold">주 담당자 정보 *</Label>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="contactName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>담당자명 *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="홍길동" {...field} data-testid="input-contact-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>이메일 *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="contact@company.com"
-                        {...field}
-                        data-testid="input-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="contactPosition"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>직책</FormLabel>
+                      <FormControl>
+                        <Input placeholder="마케팅 팀장" {...field} data-testid="input-contact-position" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="contactPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>연락처 *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="010-1234-5678" {...field} data-testid="input-contact-phone" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="contactEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>이메일 *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="contact@company.com"
+                          {...field}
+                          data-testid="input-contact-email"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <FormField
