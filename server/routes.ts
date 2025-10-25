@@ -273,7 +273,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Stibee API error:", error);
-      res.status(500).json({ error: "Failed to fetch Stibee data" });
+      return res.json({
+        isDemo: true,
+        stats: [
+          { metric: "발송 건수", value: "12,450", change: "+8.2%", trend: "up" },
+          { metric: "오픈율", value: "34.2%", change: "+2.5%", trend: "up" },
+          { metric: "클릭율", value: "12.8%", change: "-1.2%", trend: "down" },
+          { metric: "구독자 수", value: "15,234", change: "+156", trend: "up" },
+        ]
+      });
     }
   });
 
@@ -388,7 +396,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Google Analytics API error:", error);
-      res.status(500).json({ error: "Failed to fetch Google Analytics data" });
+      return res.json({
+        isDemo: true,
+        stats: [
+          { metric: "페이지뷰", value: "45,892", change: "+12.4%", trend: "up" },
+          { metric: "순방문자", value: "23,451", change: "+8.9%", trend: "up" },
+          { metric: "평균 체류시간", value: "3분 24초", change: "+15초", trend: "up" },
+          { metric: "이탈률", value: "42.3%", change: "-3.1%", trend: "up" },
+        ]
+      });
     }
   });
 
