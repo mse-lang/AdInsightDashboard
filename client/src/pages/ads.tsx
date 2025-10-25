@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Ad, Advertiser } from "@shared/schema";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,8 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { AddAdDialog } from "@/components/add-ad-dialog";
+import { StatusDropdown } from "@/components/status-dropdown";
+import type { AdStatus } from "@/components/status-badge";
 
 export default function Ads() {
   const [, setLocation] = useLocation();
@@ -35,6 +38,19 @@ export default function Ads() {
   });
 
   const isLoading = adsLoading || advertisersLoading;
+
+  const updateAdStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      return await apiRequest("PATCH", `/api/ads/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
+    },
+  });
+
+  const handleStatusChange = (id: number, status: AdStatus) => {
+    updateAdStatusMutation.mutate({ id, status });
+  };
 
   const filteredAds = useMemo(() => {
     if (!filterType) return ads;
@@ -171,10 +187,14 @@ export default function Ads() {
                       <TableCell data-testid={`text-advertiser-${ad.id}`}>
                         {ad.advertiserName}
                       </TableCell>
-                      <TableCell data-testid={`status-ad-${ad.id}`}>
-                        <Badge className={getStatusColor(ad.status)}>
-                          {ad.status}
-                        </Badge>
+                      <TableCell 
+                        data-testid={`status-ad-${ad.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <StatusDropdown
+                          currentStatus={ad.status as AdStatus}
+                          onStatusChange={(newStatus) => handleStatusChange(ad.id, newStatus)}
+                        />
                       </TableCell>
                       <TableCell data-testid={`text-period-${ad.id}`}>
                         {ad.startDate && ad.endDate ? (
