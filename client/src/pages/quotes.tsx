@@ -61,6 +61,10 @@ export default function Quotes() {
     "- 부가세 별도\n- 광고 소재는 게재 3일 전까지 제출\n- 결제는 게재 전 선입금 원칙"
   );
 
+  const [subtotal, setSubtotal] = useState(0);
+  const [tax, setTax] = useState(0);
+  const [grandTotal, setGrandTotal] = useState(0);
+
   const [advertiserInfo, setAdvertiserInfo] = useState({
     id: null as number | null,
     name: "",
@@ -89,19 +93,37 @@ export default function Quotes() {
   };
 
   const updateItem = (id: string, field: keyof QuoteItem, value: any) => {
-    setItems(
-      items.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item
-      )
+    const newItems = items.map((item) =>
+      item.id === id ? { ...item, [field]: value } : item
     );
+    setItems(newItems);
+    
+    // 자동으로 합계 업데이트
+    const newSubtotal = newItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    const newTax = Math.floor(newSubtotal * 0.1);
+    const newGrandTotal = newSubtotal + newTax;
+    setSubtotal(newSubtotal);
+    setTax(newTax);
+    setGrandTotal(newGrandTotal);
   };
 
   const selectProduct = (id: string, productKey: string) => {
     const pricing = pricings.find((p) => p.productKey === productKey);
     if (pricing) {
-      updateItem(id, "productKey", productKey);
-      updateItem(id, "product", pricing.productName);
-      updateItem(id, "unitPrice", parseInt(pricing.price));
+      const newItems = items.map((item) =>
+        item.id === id 
+          ? { ...item, productKey, product: pricing.productName, unitPrice: parseInt(pricing.price) }
+          : item
+      );
+      setItems(newItems);
+      
+      // 자동으로 합계 업데이트
+      const newSubtotal = newItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+      const newTax = Math.floor(newSubtotal * 0.1);
+      const newGrandTotal = newSubtotal + newTax;
+      setSubtotal(newSubtotal);
+      setTax(newTax);
+      setGrandTotal(newGrandTotal);
     }
   };
 
@@ -343,18 +365,47 @@ export default function Quotes() {
                 </Table>
 
                 {items.length > 0 && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex justify-between text-sm">
-                      <span>소계</span>
-                      <span className="font-mono">{formatCurrency(calculateTotal())}</span>
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm">소계</Label>
+                      <Input
+                        type="number"
+                        value={subtotal}
+                        onChange={(e) => {
+                          const newSubtotal = Number(e.target.value);
+                          setSubtotal(newSubtotal);
+                          const newTax = Math.floor(newSubtotal * 0.1);
+                          const newGrandTotal = newSubtotal + newTax;
+                          setTax(newTax);
+                          setGrandTotal(newGrandTotal);
+                        }}
+                        className="font-mono w-48 text-right"
+                        data-testid="input-subtotal"
+                      />
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>세액 (10%)</span>
-                      <span className="font-mono">{formatCurrency(calculateTax())}</span>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm">세액 (10%)</Label>
+                      <Input
+                        type="number"
+                        value={tax}
+                        onChange={(e) => {
+                          const newTax = Number(e.target.value);
+                          setTax(newTax);
+                          setGrandTotal(subtotal + newTax);
+                        }}
+                        className="font-mono w-48 text-right"
+                        data-testid="input-tax"
+                      />
                     </div>
-                    <div className="flex justify-between font-bold text-lg">
-                      <span>합계</span>
-                      <span className="font-mono">{formatCurrency(calculateGrandTotal())}</span>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-base font-bold">합계</Label>
+                      <Input
+                        type="number"
+                        value={grandTotal}
+                        onChange={(e) => setGrandTotal(Number(e.target.value))}
+                        className="font-mono font-bold text-lg w-48 text-right"
+                        data-testid="input-grand-total"
+                      />
                     </div>
                   </div>
                 )}
