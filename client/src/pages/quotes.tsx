@@ -29,6 +29,7 @@ import { Plus, Trash2, FileText, ExternalLink, ChevronDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import type { Pricing } from "@shared/schema";
+import { QuoteDetailDialog } from "@/components/quote-detail-dialog";
 
 interface QuoteItem {
   id: string;
@@ -138,10 +139,18 @@ export default function Quotes() {
     },
   ]);
 
+  const [selectedQuote, setSelectedQuote] = useState<any>(null);
+  const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+
   const handleQuoteStatusChange = (quoteId: string, newStatus: string) => {
     setMockQuotes(mockQuotes.map(quote => 
       quote.id === quoteId ? { ...quote, status: newStatus } : quote
     ));
+  };
+
+  const handleQuoteClick = (quote: any) => {
+    setSelectedQuote(quote);
+    setIsQuoteDialogOpen(true);
   };
 
   return (
@@ -326,7 +335,8 @@ export default function Quotes() {
                 {mockQuotes.map((quote) => (
                   <div
                     key={quote.id}
-                    className="p-3 border rounded-md hover-elevate"
+                    className="p-3 border rounded-md hover-elevate cursor-pointer"
+                    onClick={() => handleQuoteClick(quote)}
                     data-testid={`card-quote-${quote.id}`}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -339,6 +349,7 @@ export default function Quotes() {
                             variant="outline" 
                             size="sm"
                             className="h-6 px-2"
+                            onClick={(e) => e.stopPropagation()}
                             data-testid={`button-status-${quote.id}`}
                           >
                             {quote.status}
@@ -349,7 +360,10 @@ export default function Quotes() {
                           {quoteStatuses.map((status) => (
                             <DropdownMenuItem
                               key={status}
-                              onClick={() => handleQuoteStatusChange(quote.id, status)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuoteStatusChange(quote.id, status);
+                              }}
                               data-testid={`status-option-${status}`}
                             >
                               {status}
@@ -370,6 +384,12 @@ export default function Quotes() {
           </Card>
         </div>
       </div>
+
+      <QuoteDetailDialog
+        open={isQuoteDialogOpen}
+        onOpenChange={setIsQuoteDialogOpen}
+        quote={selectedQuote}
+      />
     </div>
   );
 }
