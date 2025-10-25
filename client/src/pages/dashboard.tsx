@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { StatCard } from "@/components/stat-card";
 import { ProgressPipeline } from "@/components/progress-pipeline";
-import { AdvertiserTable } from "@/components/advertiser-table";
 import { PerformanceChart } from "@/components/performance-chart";
 import { SalesPieChart } from "@/components/sales-pie-chart";
 import { NotificationBanner } from "@/components/notification-banner";
@@ -176,12 +175,6 @@ export default function Dashboard() {
         <PerformanceChart data={mockChartData} />
         <SalesPieChart data={mockPieData} />
       </div>
-
-      <AdvertiserTable
-        advertisers={mockAdvertisers}
-        onViewDetails={(id) => console.log("View details:", id)}
-        onStatusChange={(id, status) => console.log("Status changed:", id, status)}
-      />
     </div>
   );
 }

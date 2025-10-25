@@ -1,4 +1,3 @@
-import { AdvertiserTable } from "@/components/advertiser-table";
 import { AddAdvertiserDialog } from "@/components/add-advertiser-dialog";
 import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -8,7 +7,18 @@ import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { X, Eye } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { StatusDropdown } from "@/components/status-dropdown";
+import type { AdStatus } from "@/components/status-badge";
 
 export default function Advertisers() {
   const [, setLocation] = useLocation();
@@ -155,12 +165,81 @@ export default function Advertisers() {
           <Skeleton className="h-12 w-full" />
         </div>
       ) : (
-        <AdvertiserTable
-          advertisers={mappedAdvertisers}
-          onViewDetails={handleViewDetails}
-          onStatusChange={handleStatusChange}
-          onEditAdvertiser={handleEditAdvertiser}
-        />
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>광고주명</TableHead>
+                <TableHead>연락처</TableHead>
+                <TableHead>이메일</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead className="text-right">금액</TableHead>
+                <TableHead>등록일</TableHead>
+                <TableHead className="text-right">액션</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mappedAdvertisers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    광고주가 없습니다
+                  </TableCell>
+                </TableRow>
+              ) : (
+                mappedAdvertisers.map((advertiser) => (
+                  <TableRow 
+                    key={advertiser.id} 
+                    className="hover-elevate"
+                    data-testid={`row-advertiser-${advertiser.id}`}
+                  >
+                    <TableCell 
+                      className="font-medium cursor-pointer hover:text-primary hover:underline"
+                      onClick={() => handleEditAdvertiser(advertiser.id)}
+                      data-testid={`cell-name-${advertiser.id}`}
+                    >
+                      {advertiser.name}
+                    </TableCell>
+                    <TableCell 
+                      className="cursor-pointer hover:text-primary hover:underline"
+                      onClick={() => handleEditAdvertiser(advertiser.id)}
+                      data-testid={`cell-contact-${advertiser.id}`}
+                    >
+                      {advertiser.contact}
+                    </TableCell>
+                    <TableCell 
+                      className="cursor-pointer hover:text-primary hover:underline"
+                      onClick={() => handleEditAdvertiser(advertiser.id)}
+                      data-testid={`cell-email-${advertiser.id}`}
+                    >
+                      {advertiser.email}
+                    </TableCell>
+                    <TableCell
+                      onClick={(e) => e.stopPropagation()}
+                      data-testid={`cell-status-${advertiser.id}`}
+                    >
+                      <StatusDropdown
+                        currentStatus={advertiser.status}
+                        onStatusChange={(newStatus) => handleStatusChange(advertiser.id, newStatus)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{advertiser.amount}</TableCell>
+                    <TableCell className="text-muted-foreground">{advertiser.date}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewDetails(advertiser.id)}
+                        data-testid={`button-view-${advertiser.id}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <EditAdvertiserDialog
