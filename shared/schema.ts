@@ -125,3 +125,23 @@ export const insertMaterialSchema = createInsertSchema(materials).omit({
 
 export type InsertMaterial = z.infer<typeof insertMaterialSchema>;
 export type Material = typeof materials.$inferSelect;
+
+export const pricings = pgTable("pricings", {
+  id: serial("id").primaryKey(),
+  productName: text("product_name").notNull().unique(),
+  productKey: text("product_key").notNull().unique(),
+  price: text("price").notNull(),
+  specs: text("specs"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPricingSchema = createInsertSchema(pricings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPricing = z.infer<typeof insertPricingSchema>;
+export type Pricing = typeof pricings.$inferSelect;

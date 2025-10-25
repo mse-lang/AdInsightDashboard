@@ -10,7 +10,9 @@ import type {
   Quote,
   InsertQuote,
   Material,
-  InsertMaterial
+  InsertMaterial,
+  Pricing,
+  InsertPricing
 } from "@shared/schema";
 
 export interface IStorage {
@@ -43,6 +45,12 @@ export interface IStorage {
   createMaterial(data: InsertMaterial): Promise<Material>;
   updateMaterial(id: number, data: Partial<InsertMaterial>): Promise<Material | undefined>;
   deleteMaterial(id: number): Promise<boolean>;
+  
+  getPricings(): Promise<Pricing[]>;
+  getPricingByKey(productKey: string): Promise<Pricing | undefined>;
+  createPricing(data: InsertPricing): Promise<Pricing>;
+  updatePricing(id: number, data: Partial<InsertPricing>): Promise<Pricing | undefined>;
+  deletePricing(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -52,6 +60,7 @@ export class MemStorage implements IStorage {
   private adMaterials: AdMaterial[] = [];
   private quotes: Quote[] = [];
   private materials: Material[] = [];
+  private pricings: Pricing[] = [];
   
   private nextAdvertiserId = 1;
   private nextMemoId = 1;
@@ -59,6 +68,38 @@ export class MemStorage implements IStorage {
   private nextAdMaterialId = 1;
   private nextQuoteId = 1;
   private nextMaterialId = 1;
+  private nextPricingId = 1;
+
+  constructor() {
+    this.initializeDefaultPricings();
+  }
+
+  private initializeDefaultPricings() {
+    const defaultPricings: InsertPricing[] = [
+      { productName: "메인 배너", productKey: "main_banner", price: "2400000", specs: "PC: 1900×400px, Mobile: 720×520px, 총 4주 운영", description: "매달 240만원" },
+      { productName: "사이드 배너 1", productKey: "side_banner_1", price: "2400000", specs: "600×300px, 로고만 운영", description: "매달 240만원" },
+      { productName: "사이드 배너 2", productKey: "side_banner_2", price: "1500000", specs: "300×250px", description: "매달 150만원" },
+      { productName: "사이드 배너 3", productKey: "side_banner_3", price: "750000", specs: "300×250px, 위드배너", description: "총액 75만원" },
+      { productName: "뉴스레터 TOP 배너", productKey: "newsletter_top", price: "500000", specs: "5,200명 구독자, 섹션 배치", description: "50만원" },
+      { productName: "뉴스레터 MIDDLE 배너", productKey: "newsletter_middle", price: "400000", specs: "로고만 굵은 배치", description: "40만원" },
+      { productName: "뉴스레터 BOTTOM 배너", productKey: "newsletter_bottom", price: "300000", specs: "텍스트 배치", description: "30만원" },
+      { productName: "뉴스레터 이벤트광고", productKey: "newsletter_event", price: "800000", specs: "뉴스레터 내 기사 형식", description: "80만원" },
+      { productName: "뉴스레터 eDM", productKey: "newsletter_edm", price: "1200000", specs: "뉴스레터 eDM", description: "120만원" },
+    ];
+
+    defaultPricings.forEach(pricing => {
+      this.pricings.push({
+        id: this.nextPricingId++,
+        productName: pricing.productName,
+        productKey: pricing.productKey,
+        price: pricing.price,
+        specs: pricing.specs || null,
+        description: pricing.description || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+  }
 
   async getAdvertisers(): Promise<Advertiser[]> {
     return this.advertisers;
@@ -266,6 +307,49 @@ export class MemStorage implements IStorage {
     if (index === -1) return false;
     
     this.materials.splice(index, 1);
+    return true;
+  }
+
+  async getPricings(): Promise<Pricing[]> {
+    return this.pricings;
+  }
+
+  async getPricingByKey(productKey: string): Promise<Pricing | undefined> {
+    return this.pricings.find(p => p.productKey === productKey);
+  }
+
+  async createPricing(data: InsertPricing): Promise<Pricing> {
+    const pricing: Pricing = {
+      id: this.nextPricingId++,
+      productName: data.productName,
+      productKey: data.productKey,
+      price: data.price,
+      specs: data.specs || null,
+      description: data.description || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.pricings.push(pricing);
+    return pricing;
+  }
+
+  async updatePricing(id: number, data: Partial<InsertPricing>): Promise<Pricing | undefined> {
+    const index = this.pricings.findIndex(p => p.id === id);
+    if (index === -1) return undefined;
+    
+    this.pricings[index] = {
+      ...this.pricings[index],
+      ...data,
+      updatedAt: new Date(),
+    };
+    return this.pricings[index];
+  }
+
+  async deletePricing(id: number): Promise<boolean> {
+    const index = this.pricings.findIndex(p => p.id === id);
+    if (index === -1) return false;
+    
+    this.pricings.splice(index, 1);
     return true;
   }
 }
