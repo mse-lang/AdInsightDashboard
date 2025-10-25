@@ -9,10 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, User, Image as ImageIcon } from "lucide-react";
-import mainBannerImg from "@assets/image_1761406802584.png";
-import sideBannerImg from "@assets/image_1761406824308.png";
-import newsletterBannerImg from "@assets/image_1761406843052.png";
-import edmBannerImg from "@assets/image_1761406864230.png";
 
 interface AdSlotDialogProps {
   open: boolean;
@@ -68,14 +64,6 @@ export function AdSlotDialog({ open, onOpenChange, date, events }: AdSlotDialogP
     }).length;
   };
 
-  const getBannerImage = (slotName: string) => {
-    if (slotName === "메인배너") return mainBannerImg;
-    if (slotName.startsWith("사이드배너")) return sideBannerImg;
-    if (slotName === "뉴스레터배너") return newsletterBannerImg;
-    if (slotName === "eDM") return edmBannerImg;
-    return null;
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl" data-testid="dialog-ad-slots">
@@ -94,8 +82,6 @@ export function AdSlotDialog({ open, onOpenChange, date, events }: AdSlotDialogP
             const occupied = getOccupiedPositions(slot.name);
             const available = slot.positions - occupied;
             const occupancyRate = Math.round((occupied / slot.positions) * 100);
-
-            const bannerImage = getBannerImage(slot.name);
             
             return (
               <div
@@ -119,23 +105,6 @@ export function AdSlotDialog({ open, onOpenChange, date, events }: AdSlotDialogP
                     {occupied}/{slot.positions} 사용중
                   </Badge>
                 </div>
-
-                {bannerImage && (
-                  <div className="mb-3 relative group overflow-hidden rounded-md">
-                    <img 
-                      src={bannerImage} 
-                      alt={slot.name}
-                      className="w-full h-auto rounded-md border scale-125"
-                    />
-                    <div className={`absolute inset-0 rounded-md transition-opacity ${
-                      occupancyRate >= 100 
-                        ? "bg-red-500/20" 
-                        : occupancyRate >= 80 
-                        ? "bg-yellow-500/20" 
-                        : "bg-green-500/10"
-                    }`} />
-                  </div>
-                )}
 
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
