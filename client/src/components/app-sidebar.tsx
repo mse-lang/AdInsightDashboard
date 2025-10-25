@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import logoImage from "@assets/generated_images/Venture_Square_logo_design_42b503e7.png";
+import logoImage from "@assets/venturesquare logo_로고만_1761404131673.png";
 
 const menuItems = [
   { title: "대시보드", url: "/", icon: Home },
