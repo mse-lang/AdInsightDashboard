@@ -1,5 +1,6 @@
 import { AdvertiserTable } from "@/components/advertiser-table";
 import { AddAdvertiserDialog } from "@/components/add-advertiser-dialog";
+import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Advertiser, Contact } from "@shared/schema";
@@ -12,6 +13,8 @@ import { X } from "lucide-react";
 export default function Advertisers() {
   const [, setLocation] = useLocation();
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [editingAdvertiserId, setEditingAdvertiserId] = useState<number | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -54,6 +57,11 @@ export default function Advertisers() {
 
   const handleViewDetails = (id: string) => {
     setLocation(`/advertisers/${id}`);
+  };
+
+  const handleEditAdvertiser = (id: string) => {
+    setEditingAdvertiserId(parseInt(id));
+    setIsEditDialogOpen(true);
   };
 
   const filteredAdvertisers = useMemo(() => {
@@ -136,8 +144,15 @@ export default function Advertisers() {
           advertisers={mappedAdvertisers}
           onViewDetails={handleViewDetails}
           onStatusChange={handleStatusChange}
+          onEditAdvertiser={handleEditAdvertiser}
         />
       )}
+
+      <EditAdvertiserDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        advertiserId={editingAdvertiserId}
+      />
     </div>
   );
 }

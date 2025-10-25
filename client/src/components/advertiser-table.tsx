@@ -35,6 +35,7 @@ interface AdvertiserTableProps {
   advertisers: Advertiser[];
   onViewDetails?: (id: string) => void;
   onStatusChange?: (id: string, status: AdStatus) => void;
+  onEditAdvertiser?: (id: string) => void;
 }
 
 const allStatuses: AdStatus[] = [
@@ -48,7 +49,7 @@ const allStatuses: AdStatus[] = [
   "매출 입금",
 ];
 
-export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange }: AdvertiserTableProps) {
+export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange, onEditAdvertiser }: AdvertiserTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredAdvertisers = advertisers.filter(
@@ -96,9 +97,27 @@ export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange }: 
                   className={`hover-elevate ${isInquiry ? "bg-blue-50 dark:bg-blue-950" : ""}`}
                   data-testid={`row-advertiser-${advertiser.id}`}
                 >
-                  <TableCell className="font-medium">{advertiser.name}</TableCell>
-                  <TableCell>{advertiser.contact}</TableCell>
-                  <TableCell>{advertiser.email}</TableCell>
+                  <TableCell 
+                    className="font-medium cursor-pointer hover:text-primary hover:underline"
+                    onClick={() => onEditAdvertiser?.(advertiser.id)}
+                    data-testid={`cell-name-${advertiser.id}`}
+                  >
+                    {advertiser.name}
+                  </TableCell>
+                  <TableCell 
+                    className="cursor-pointer hover:text-primary hover:underline"
+                    onClick={() => onEditAdvertiser?.(advertiser.id)}
+                    data-testid={`cell-contact-${advertiser.id}`}
+                  >
+                    {advertiser.contact}
+                  </TableCell>
+                  <TableCell 
+                    className="cursor-pointer hover:text-primary hover:underline"
+                    onClick={() => onEditAdvertiser?.(advertiser.id)}
+                    data-testid={`cell-email-${advertiser.id}`}
+                  >
+                    {advertiser.email}
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={advertiser.status}
