@@ -1,0 +1,61 @@
+import { Home, Users, FileText, BarChart3, Settings, Mail, Calendar } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+} from "@/components/ui/sidebar";
+import logoImage from "@assets/generated_images/Venture_Square_logo_design_42b503e7.png";
+
+const menuItems = [
+  { title: "대시보드", url: "/", icon: Home },
+  { title: "광고주 관리", url: "/advertisers", icon: Users },
+  { title: "광고 구좌 관리", url: "/ad-slots", icon: Calendar },
+  { title: "견적/청구", url: "/quotes", icon: FileText },
+  { title: "성과 분석", url: "/analytics", icon: BarChart3 },
+  { title: "광고소개서", url: "/materials", icon: Mail },
+  { title: "설정", url: "/settings", icon: Settings },
+];
+
+export function AppSidebar() {
+  const [location] = useLocation();
+
+  return (
+    <Sidebar>
+      <SidebarHeader className="p-6">
+        <div className="flex items-center gap-3">
+          <img src={logoImage} alt="Venture Square" className="w-10 h-10 rounded-md" />
+          <div>
+            <h2 className="font-bold text-lg">벤처스퀘어</h2>
+            <p className="text-xs text-muted-foreground">광고 관리</p>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>메뉴</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title}`}>
+                    <Link href={item.url}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
