@@ -296,7 +296,7 @@ export default function Quotes() {
                   data-testid="button-billing"
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  청구하기
+                  세금계산서 발행(홈택스 연결)
                 </Button>
               </div>
             </CardContent>
