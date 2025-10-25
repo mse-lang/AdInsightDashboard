@@ -23,7 +23,11 @@ export default function Dashboard() {
     const revenueStatuses = ["세금계산서 발행 및 대금 청구", "매출 입금"];
     const total = advertisers
       .filter(adv => revenueStatuses.includes(adv.status))
-      .reduce((sum, adv) => sum + (adv.amount ? parseInt(adv.amount) : 0), 0);
+      .reduce((sum, adv) => {
+        if (!adv.amount) return sum;
+        const numericAmount = parseInt(adv.amount.replace(/[^0-9]/g, ''));
+        return sum + (isNaN(numericAmount) ? 0 : numericAmount);
+      }, 0);
     return `₩${total.toLocaleString()}`;
   }, [advertisers]);
 

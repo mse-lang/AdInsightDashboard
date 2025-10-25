@@ -156,7 +156,10 @@ export function AdSlotDialog({ open, onOpenChange, date, events }: AdSlotDialogP
                 </div>
 
                 {dateEvents
-                  .filter((event) => event.slot === slot.name)
+                  .filter((event) => {
+                    const normalizedNames = normalizeSlotName(event.slot);
+                    return normalizedNames.includes(slot.name);
+                  })
                   .map((event) => (
                     <div
                       key={event.id}
