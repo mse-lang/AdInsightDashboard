@@ -11,6 +11,8 @@ import Advertisers from "@/pages/advertisers";
 import AdSlots from "@/pages/ad-slots";
 import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
+import Materials from "@/pages/materials";
+import Settings from "@/pages/settings";
 
 function Router() {
   return (
@@ -19,6 +21,8 @@ function Router() {
       <Route path="/advertisers" component={Advertisers} />
       <Route path="/ad-slots" component={AdSlots} />
       <Route path="/quotes" component={Quotes} />
+      <Route path="/materials" component={Materials} />
+      <Route path="/settings" component={Settings} />
       <Route path="/inquiry" component={Inquiry} />
       <Route component={NotFound} />
     </Switch>
