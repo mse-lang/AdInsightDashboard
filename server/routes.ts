@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema } from "@shared/schema";
+import jwt from "jsonwebtoken";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/advertisers", async (req, res) => {
@@ -278,9 +279,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/google", async (req, res) => {
     const propertyId = process.env.GA_PROPERTY_ID;
-    const credentials = process.env.GA_CREDENTIALS;
+    const credentialsJson = process.env.GA_CREDENTIALS;
+    const delegatedEmail = process.env.GA_DELEGATED_EMAIL;
     
-    if (!propertyId || !credentials) {
+    if (!propertyId || !credentialsJson) {
       return res.json({
         isDemo: true,
         stats: [
@@ -293,15 +295,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      const credentials = JSON.parse(credentialsJson);
+      
+      if (!credentials.client_email || !credentials.private_key) {
+        console.error("GA credentials missing client_email or private_key");
+        return res.json({
+          isDemo: true,
+          stats: [
+            { metric: "페이지뷰", value: "45,892", change: "+12.4%", trend: "up" },
+            { metric: "순방문자", value: "23,451", change: "+8.9%", trend: "up" },
+            { metric: "평균 체류시간", value: "3분 24초", change: "+15초", trend: "up" },
+            { metric: "이탈률", value: "42.3%", change: "-3.1%", trend: "up" },
+          ]
+        });
+      }
+      
+      const now = Math.floor(Date.now() / 1000);
+      const jwtClaims: any = {
+        iss: credentials.client_email,
+        scope: "https://www.googleapis.com/auth/analytics.readonly",
+        aud: "https://oauth2.googleapis.com/token",
+        exp: now + 3600,
+        iat: now,
+      };
+      
+      if (delegatedEmail) {
+        jwtClaims.sub = delegatedEmail;
+      }
+      
+      const jwtToken = jwt.sign(
+        jwtClaims,
+        credentials.private_key,
+        { algorithm: "RS256" }
+      );
+
       const authResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: JSON.stringify(JSON.parse(credentials))
+        body: new URLSearchParams({
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion: jwtToken
+        }).toString()
       });
 
       if (!authResponse.ok) {
+        const errorText = await authResponse.text();
+        console.error("Google Auth error:", errorText);
         throw new Error("Google Auth error");
       }
 
@@ -328,6 +369,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!analyticsResponse.ok) {
+        const errorText = await analyticsResponse.text();
+        console.error("Google Analytics API error:", errorText);
         throw new Error("Google Analytics API error");
       }
 
