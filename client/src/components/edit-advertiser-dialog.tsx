@@ -65,8 +65,15 @@ export function EditAdvertiserDialog({ open, onOpenChange, advertiserId }: EditA
         businessNumber: advertiser.businessNumber || "",
         ceoName: advertiser.ceoName || "",
       });
+    } else if (!open) {
+      setAdvertiserData({
+        name: "",
+        businessNumber: "",
+        ceoName: "",
+      });
+      setContacts([]);
     }
-  }, [advertiser]);
+  }, [advertiser, open]);
 
   useEffect(() => {
     if (fetchedContacts.length > 0) {
@@ -78,8 +85,10 @@ export function EditAdvertiserDialog({ open, onOpenChange, advertiserId }: EditA
         position: c.position || "",
         isPrimary: c.isPrimary,
       })));
+    } else if (open && advertiserId) {
+      setContacts([]);
     }
-  }, [fetchedContacts]);
+  }, [fetchedContacts, open, advertiserId]);
 
   const updateAdvertiserMutation = useMutation({
     mutationFn: async (data: any) => {

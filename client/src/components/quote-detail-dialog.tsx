@@ -162,6 +162,9 @@ export function QuoteDetailDialog({ open, onOpenChange, quote }: QuoteDetailDial
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-quote-detail">
         <DialogHeader>
           <DialogTitle>견적서 상세</DialogTitle>
+          <DialogDescription>
+            견적서 정보를 확인하고 PDF로 다운로드할 수 있습니다
+          </DialogDescription>
         </DialogHeader>
 
         <div ref={contentRef} className="bg-white p-8 space-y-6 text-black">
