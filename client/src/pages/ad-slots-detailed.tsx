@@ -22,6 +22,15 @@ import { Plus, Upload, Calendar, FileImage, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
 import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
+import { SelectAdvertiserDialog, type AdvertiserInfo } from "@/components/select-advertiser-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DialogFooter } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import type { Advertiser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +54,19 @@ export default function AdSlotsDetailed() {
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
   const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<number | null>(null);
   const [isAdvertiserDialogOpen, setIsAdvertiserDialogOpen] = useState(false);
+  
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isSelectAdvertiserForUpload, setIsSelectAdvertiserForUpload] = useState(false);
+  const [uploadFormData, setUploadFormData] = useState({
+    advertiserId: "",
+    advertiserName: "",
+    slot: "",
+    fileName: "",
+    startDate: "",
+    endDate: "",
+    amount: "",
+  });
+  
   const { toast } = useToast();
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
@@ -153,6 +175,51 @@ export default function AdSlotsDetailed() {
     setIsAdvertiserDialogOpen(true);
   };
 
+  const handleOpenUploadDialog = () => {
+    setUploadFormData({
+      advertiserId: "",
+      advertiserName: "",
+      slot: "",
+      fileName: "",
+      startDate: "",
+      endDate: "",
+      amount: "",
+    });
+    setIsUploadDialogOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFormData({ ...uploadFormData, fileName: file.name });
+    }
+  };
+
+  const handleAdvertiserSelectForUpload = (advertiser: AdvertiserInfo) => {
+    setUploadFormData({
+      ...uploadFormData,
+      advertiserId: advertiser.id.toString(),
+      advertiserName: advertiser.name,
+    });
+  };
+
+  const handleUploadSubmit = () => {
+    if (!uploadFormData.advertiserId || !uploadFormData.slot || !uploadFormData.fileName) {
+      toast({
+        title: "필수 항목 누락",
+        description: "광고주, 구좌, 파일을 모두 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "소재 업로드 완료",
+      description: `${uploadFormData.advertiserName}의 ${uploadFormData.slot} 소재가 업로드되었습니다.`,
+    });
+    setIsUploadDialogOpen(false);
+  };
+
   return (
     <div className="space-y-6" data-testid="page-ad-slots-detailed">
       <div className="flex items-center justify-between">
@@ -232,7 +299,13 @@ export default function AdSlotsDetailed() {
                 </div>
               )}
 
-              <Button variant="outline" className="w-full" size="sm">
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                size="sm"
+                onClick={handleOpenUploadDialog}
+                data-testid="button-upload-material"
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 소재 업로드
               </Button>
@@ -410,6 +483,128 @@ export default function AdSlotsDetailed() {
         open={isAdvertiserDialogOpen}
         onOpenChange={setIsAdvertiserDialogOpen}
         advertiserId={selectedAdvertiserId}
+      />
+
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent className="max-w-2xl" data-testid="dialog-upload-material">
+          <DialogHeader>
+            <DialogTitle>광고 소재 업로드</DialogTitle>
+            <DialogDescription>
+              광고 소재를 업로드하고 노출 일정을 설정하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>광고주</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={uploadFormData.advertiserName}
+                  placeholder="광고주를 선택하세요"
+                  readOnly
+                  data-testid="input-upload-advertiser"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSelectAdvertiserForUpload(true)}
+                  data-testid="button-select-upload-advertiser"
+                >
+                  선택
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label>광고 구좌</Label>
+              <Select
+                value={uploadFormData.slot}
+                onValueChange={(value) => setUploadFormData({ ...uploadFormData, slot: value })}
+              >
+                <SelectTrigger data-testid="select-upload-slot">
+                  <SelectValue placeholder="구좌를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockSlots.map((slot) => (
+                    <SelectItem key={slot.id} value={slot.name}>
+                      {slot.name} - {slot.price}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>소재 파일</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                data-testid="input-upload-file"
+              />
+              {uploadFormData.fileName && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  선택된 파일: {uploadFormData.fileName}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>노출 시작일</Label>
+                <Input
+                  type="date"
+                  value={uploadFormData.startDate}
+                  onChange={(e) => setUploadFormData({ ...uploadFormData, startDate: e.target.value })}
+                  data-testid="input-upload-start-date"
+                />
+              </div>
+              <div>
+                <Label>노출 종료일</Label>
+                <Input
+                  type="date"
+                  value={uploadFormData.endDate}
+                  onChange={(e) => setUploadFormData({ ...uploadFormData, endDate: e.target.value })}
+                  data-testid="input-upload-end-date"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>집행 금액</Label>
+              <Input
+                type="number"
+                value={uploadFormData.amount}
+                onChange={(e) => setUploadFormData({ ...uploadFormData, amount: e.target.value })}
+                placeholder="금액을 입력하세요"
+                className="font-mono"
+                data-testid="input-upload-amount"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsUploadDialogOpen(false)}
+              data-testid="button-cancel-upload"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleUploadSubmit}
+              data-testid="button-submit-upload"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              업로드
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SelectAdvertiserDialog
+        open={isSelectAdvertiserForUpload}
+        onOpenChange={setIsSelectAdvertiserForUpload}
+        onSelect={handleAdvertiserSelectForUpload}
       />
     </div>
   );
