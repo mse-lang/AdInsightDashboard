@@ -501,7 +501,7 @@ export default function Settings() {
                     <FormItem>
                       <FormLabel>규격/특징 (선택)</FormLabel>
                       <FormControl>
-                        <Input placeholder="예: PC: 1900×400px, Mobile: 600×300px" {...field} data-testid="input-product-specs" />
+                        <Input placeholder="예: PC: 1900×400px, Mobile: 600×300px" {...field} value={field.value || ""} data-testid="input-product-specs" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -514,7 +514,7 @@ export default function Settings() {
                     <FormItem>
                       <FormLabel>설명 (선택)</FormLabel>
                       <FormControl>
-                        <Input placeholder="예: 매달 240만원" {...field} data-testid="input-product-description" />
+                        <Input placeholder="예: 매달 240만원" {...field} value={field.value || ""} data-testid="input-product-description" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

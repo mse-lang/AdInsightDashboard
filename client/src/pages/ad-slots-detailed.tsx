@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { DialogFooter } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import type { Advertiser } from "@shared/schema";
+import type { Advertiser, Pricing } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 interface AdMaterial {
@@ -66,11 +66,22 @@ export default function AdSlotsDetailed() {
     endDate: "",
     amount: "",
   });
+
+  const [isAddSlotDialogOpen, setIsAddSlotDialogOpen] = useState(false);
+  const [newSlotData, setNewSlotData] = useState({
+    name: "",
+    pricingId: "",
+    maxSlots: 1,
+  });
   
   const { toast } = useToast();
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const { data: pricings = [] } = useQuery<Pricing[]>({
+    queryKey: ["/api/pricings"],
   });
 
   const getAdvertiserName = (advertiserId: string): string => {
@@ -220,6 +231,34 @@ export default function AdSlotsDetailed() {
     setIsUploadDialogOpen(false);
   };
 
+  const handleOpenAddSlotDialog = () => {
+    setNewSlotData({
+      name: "",
+      pricingId: "",
+      maxSlots: 1,
+    });
+    setIsAddSlotDialogOpen(true);
+  };
+
+  const handleAddSlotSubmit = () => {
+    if (!newSlotData.name || !newSlotData.pricingId) {
+      toast({
+        title: "필수 항목 누락",
+        description: "구좌명과 상품을 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedPricing = pricings.find(p => p.id.toString() === newSlotData.pricingId);
+    
+    toast({
+      title: "구좌 추가 완료",
+      description: `${newSlotData.name} 구좌가 추가되었습니다.`,
+    });
+    setIsAddSlotDialogOpen(false);
+  };
+
   return (
     <div className="space-y-6" data-testid="page-ad-slots-detailed">
       <div className="flex items-center justify-between">
@@ -228,10 +267,7 @@ export default function AdSlotsDetailed() {
           <p className="text-muted-foreground mt-1">광고 구좌별 현황을 확인하고 관리하세요</p>
         </div>
         <Button 
-          onClick={() => toast({
-            title: "구좌 추가 기능",
-            description: "이 기능은 현재 개발 중입니다.",
-          })}
+          onClick={handleOpenAddSlotDialog}
           data-testid="button-add-slot"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -606,6 +642,96 @@ export default function AdSlotsDetailed() {
         onOpenChange={setIsSelectAdvertiserForUpload}
         onSelect={handleAdvertiserSelectForUpload}
       />
+
+      <Dialog open={isAddSlotDialogOpen} onOpenChange={setIsAddSlotDialogOpen}>
+        <DialogContent data-testid="dialog-add-slot">
+          <DialogHeader>
+            <DialogTitle>새 광고 구좌 추가</DialogTitle>
+            <DialogDescription>
+              새로운 광고 구좌를 추가하고 단가를 설정하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>구좌명</Label>
+              <Input
+                value={newSlotData.name}
+                onChange={(e) => setNewSlotData({ ...newSlotData, name: e.target.value })}
+                placeholder="예: 메인배너, 사이드배너"
+                data-testid="input-slot-name"
+              />
+            </div>
+
+            <div>
+              <Label>상품 선택 (단가표 연동)</Label>
+              <Select
+                value={newSlotData.pricingId}
+                onValueChange={(value) => setNewSlotData({ ...newSlotData, pricingId: value })}
+              >
+                <SelectTrigger data-testid="select-slot-pricing">
+                  <SelectValue placeholder="단가표에서 상품을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pricings.map((pricing) => (
+                    <SelectItem key={pricing.id} value={pricing.id.toString()}>
+                      {pricing.productName} - ₩{parseInt(pricing.price).toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                설정 &gt; 단가 관리에서 단가를 추가/수정할 수 있습니다
+              </p>
+            </div>
+
+            <div>
+              <Label>최대 슬롯 수</Label>
+              <Input
+                type="number"
+                value={newSlotData.maxSlots}
+                onChange={(e) => setNewSlotData({ ...newSlotData, maxSlots: parseInt(e.target.value) || 1 })}
+                min="1"
+                data-testid="input-slot-max"
+              />
+            </div>
+
+            {newSlotData.pricingId && (
+              <div className="p-4 bg-muted rounded-md">
+                <Label className="text-sm text-muted-foreground">선택된 상품 정보</Label>
+                {(() => {
+                  const selectedPricing = pricings.find(p => p.id.toString() === newSlotData.pricingId);
+                  return selectedPricing ? (
+                    <div className="mt-2 space-y-1 text-sm">
+                      <p><strong>상품명:</strong> {selectedPricing.productName}</p>
+                      <p><strong>단가:</strong> ₩{parseInt(selectedPricing.price).toLocaleString()}</p>
+                      {selectedPricing.specs && <p><strong>규격:</strong> {selectedPricing.specs}</p>}
+                      {selectedPricing.description && <p><strong>설명:</strong> {selectedPricing.description}</p>}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddSlotDialogOpen(false)}
+              data-testid="button-cancel-add-slot"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleAddSlotSubmit}
+              data-testid="button-submit-add-slot"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              추가
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
