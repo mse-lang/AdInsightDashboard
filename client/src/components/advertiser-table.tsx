@@ -11,7 +11,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, AdStatus } from "./status-badge";
-import { Search, Eye } from "lucide-react";
+import { Search, Eye, MessageSquare } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface Advertiser {
   id: string;
@@ -26,9 +33,22 @@ export interface Advertiser {
 interface AdvertiserTableProps {
   advertisers: Advertiser[];
   onViewDetails?: (id: string) => void;
+  onStatusChange?: (id: string, status: AdStatus) => void;
+  onMemoClick?: (id: string) => void;
 }
 
-export function AdvertiserTable({ advertisers, onViewDetails }: AdvertiserTableProps) {
+const allStatuses: AdStatus[] = [
+  "문의중",
+  "견적제시",
+  "일정조율중",
+  "부킹확정",
+  "집행중",
+  "결과보고",
+  "세금계산서 발행 및 대금 청구",
+  "매출 입금",
+];
+
+export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange, onMemoClick }: AdvertiserTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredAdvertisers = advertisers.filter(
@@ -68,28 +88,61 @@ export function AdvertiserTable({ advertisers, onViewDetails }: AdvertiserTableP
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAdvertisers.map((advertiser) => (
-              <TableRow key={advertiser.id} className="hover-elevate" data-testid={`row-advertiser-${advertiser.id}`}>
-                <TableCell className="font-medium">{advertiser.name}</TableCell>
-                <TableCell>{advertiser.contact}</TableCell>
-                <TableCell>{advertiser.email}</TableCell>
-                <TableCell>
-                  <StatusBadge status={advertiser.status} />
-                </TableCell>
-                <TableCell className="text-right font-mono">{advertiser.amount}</TableCell>
-                <TableCell className="text-muted-foreground">{advertiser.date}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewDetails?.(advertiser.id)}
-                    data-testid={`button-view-${advertiser.id}`}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filteredAdvertisers.map((advertiser) => {
+              const isInquiry = advertiser.status === "문의중";
+              return (
+                <TableRow 
+                  key={advertiser.id} 
+                  className={`hover-elevate ${isInquiry ? "bg-blue-50 dark:bg-blue-950" : ""}`}
+                  data-testid={`row-advertiser-${advertiser.id}`}
+                >
+                  <TableCell className="font-medium">{advertiser.name}</TableCell>
+                  <TableCell>{advertiser.contact}</TableCell>
+                  <TableCell>{advertiser.email}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={advertiser.status}
+                      onValueChange={(value) => onStatusChange?.(advertiser.id, value as AdStatus)}
+                    >
+                      <SelectTrigger className="w-[200px]" data-testid={`select-status-${advertiser.id}`}>
+                        <SelectValue>
+                          <StatusBadge status={advertiser.status} />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allStatuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            <StatusBadge status={status} />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">{advertiser.amount}</TableCell>
+                  <TableCell className="text-muted-foreground">{advertiser.date}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onMemoClick?.(advertiser.id)}
+                        data-testid={`button-memo-${advertiser.id}`}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onViewDetails?.(advertiser.id)}
+                        data-testid={`button-view-${advertiser.id}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
