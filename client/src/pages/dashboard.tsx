@@ -127,7 +127,6 @@ export default function Dashboard() {
         advertisers={mockAdvertisers}
         onViewDetails={(id) => console.log("View details:", id)}
         onStatusChange={(id, status) => console.log("Status changed:", id, status)}
-        onMemoClick={(id) => console.log("Memo clicked:", id)}
       />
     </div>
   );

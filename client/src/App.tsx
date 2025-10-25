@@ -13,6 +13,7 @@ import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
 import Materials from "@/pages/materials";
 import Settings from "@/pages/settings";
+import Analytics from "@/pages/analytics";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/advertisers" component={Advertisers} />
       <Route path="/ad-slots" component={AdSlots} />
       <Route path="/quotes" component={Quotes} />
+      <Route path="/analytics" component={Analytics} />
       <Route path="/materials" component={Materials} />
       <Route path="/settings" component={Settings} />
       <Route path="/inquiry" component={Inquiry} />

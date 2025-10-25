@@ -26,17 +26,27 @@ interface AdMaterial {
   status: "예정" | "진행중" | "종료";
 }
 
+type SlotStatus = "available" | "partial" | "full";
+
 export default function AdSlotsDetailed() {
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
 
-  const mockSlots = [
+  const mockSlots: Array<{
+    id: string;
+    name: string;
+    maxSlots: number;
+    currentSlots: number;
+    price: string;
+    status: SlotStatus;
+    materials: string[];
+  }> = [
     {
       id: "1",
       name: "메인배너",
       maxSlots: 8,
       currentSlots: 5,
       price: "₩1,000,000",
-      status: "partial" as const,
+      status: "partial",
       materials: ["banner_tech.jpg", "banner_ecom.jpg"],
     },
     {
@@ -45,7 +55,7 @@ export default function AdSlotsDetailed() {
       maxSlots: 4,
       currentSlots: 0,
       price: "₩500,000",
-      status: "available" as const,
+      status: "available",
       materials: [],
     },
     {
@@ -54,7 +64,7 @@ export default function AdSlotsDetailed() {
       maxSlots: 4,
       currentSlots: 2,
       price: "₩500,000",
-      status: "partial" as const,
+      status: "partial",
       materials: ["side_ad.png"],
     },
   ];

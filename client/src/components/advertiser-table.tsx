@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, AdStatus } from "./status-badge";
-import { Search, Eye, MessageSquare } from "lucide-react";
+import { MemoDialog } from "./memo-dialog";
+import { Search, Eye } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -34,7 +35,6 @@ interface AdvertiserTableProps {
   advertisers: Advertiser[];
   onViewDetails?: (id: string) => void;
   onStatusChange?: (id: string, status: AdStatus) => void;
-  onMemoClick?: (id: string) => void;
 }
 
 const allStatuses: AdStatus[] = [
@@ -48,7 +48,7 @@ const allStatuses: AdStatus[] = [
   "매출 입금",
 ];
 
-export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange, onMemoClick }: AdvertiserTableProps) {
+export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange }: AdvertiserTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredAdvertisers = advertisers.filter(
@@ -122,14 +122,7 @@ export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange, on
                   <TableCell className="text-muted-foreground">{advertiser.date}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onMemoClick?.(advertiser.id)}
-                        data-testid={`button-memo-${advertiser.id}`}
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
+                      <MemoDialog advertiserName={advertiser.name} />
                       <Button
                         variant="ghost"
                         size="sm"

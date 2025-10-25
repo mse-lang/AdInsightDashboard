@@ -1,6 +1,5 @@
 import { AdvertiserTable } from "@/components/advertiser-table";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { AddAdvertiserDialog } from "@/components/add-advertiser-dialog";
 
 export default function Advertisers() {
   // Mock data - todo: remove mock functionality
@@ -50,17 +49,13 @@ export default function Advertisers() {
           <h1 className="text-3xl font-bold">광고주 관리</h1>
           <p className="text-muted-foreground mt-1">모든 광고주를 관리하고 상태를 추적하세요</p>
         </div>
-        <Button data-testid="button-add-advertiser">
-          <Plus className="h-4 w-4 mr-2" />
-          광고주 추가
-        </Button>
+        <AddAdvertiserDialog onAdd={(data) => console.log("New advertiser:", data)} />
       </div>
 
       <AdvertiserTable
         advertisers={mockAdvertisers}
         onViewDetails={(id) => console.log("View details:", id)}
         onStatusChange={(id, status) => console.log("Status changed:", id, status)}
-        onMemoClick={(id) => console.log("Memo clicked:", id)}
       />
     </div>
   );
