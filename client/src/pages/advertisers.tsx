@@ -3,7 +3,7 @@ import { AddAdvertiserDialog } from "@/components/add-advertiser-dialog";
 import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Advertiser, Contact } from "@shared/schema";
+import type { Advertiser, Contact, Quote } from "@shared/schema";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo, useEffect, useState } from "react";
@@ -24,6 +24,10 @@ export default function Advertisers() {
   
   const { data: advertisers = [], isLoading } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const { data: quotes = [] } = useQuery<Quote[]>({
+    queryKey: ["/api/quotes"],
   });
 
   const { data: allContacts = [] } = useQuery<Record<number, Contact[]>>({
@@ -86,13 +90,19 @@ export default function Advertisers() {
     const contacts = allContacts[adv.id] || [];
     const primaryContact = contacts.find(c => c.isPrimary) || contacts[0];
     
+    // 광고주의 모든 견적서 총액 계산
+    const advertiserQuotes = quotes.filter(q => q.advertiserId === adv.id);
+    const totalQuoteAmount = advertiserQuotes.reduce((sum, quote) => {
+      return sum + parseInt(quote.total || "0");
+    }, 0);
+    
     return {
       id: adv.id.toString(),
       name: adv.name,
       contact: primaryContact?.name || "-",
       email: primaryContact?.email || "-",
       status: adv.status as any,
-      amount: adv.amount ? `₩${parseInt(adv.amount).toLocaleString()}` : "₩0",
+      amount: totalQuoteAmount > 0 ? `₩${totalQuoteAmount.toLocaleString()}` : "₩0",
       date: adv.inquiryDate,
     };
   });

@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Advertiser, AdMaterial, Memo } from "@shared/schema";
+import type { Advertiser, AdMaterial, Memo, Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,10 +36,13 @@ export default function AdvertiserDetail() {
     enabled: !!advertiserId,
   });
 
+  const { data: quotes = [] } = useQuery<Quote[]>({
+    queryKey: ["/api/quotes"],
+    enabled: !!advertiserId,
+  });
+
   const [editForm, setEditForm] = useState({
     name: "",
-    contact: "",
-    email: "",
     ceoName: "",
     businessNumber: "",
   });
@@ -62,8 +65,6 @@ export default function AdvertiserDetail() {
     if (advertiser) {
       setEditForm({
         name: advertiser.name,
-        contact: advertiser.contact,
-        email: advertiser.email,
         ceoName: advertiser.ceoName || "",
         businessNumber: advertiser.businessNumber || "",
       });
@@ -84,8 +85,10 @@ export default function AdvertiserDetail() {
     );
   }
 
-  const totalSpent = adMaterials.reduce((sum, material) => {
-    return sum + (material.amount ? parseInt(material.amount) : 0);
+  // 광고주의 모든 견적서 총액 계산
+  const advertiserQuotes = quotes.filter(q => q.advertiserId === advertiserId);
+  const totalSpent = advertiserQuotes.reduce((sum, quote) => {
+    return sum + parseInt(quote.total || "0");
   }, 0);
 
   const completedCampaigns = adMaterials.filter(m => m.status === "완료").length;
@@ -198,22 +201,6 @@ export default function AdvertiserDetail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>연락처</Label>
-                <Input
-                  value={editForm.contact}
-                  onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })}
-                  data-testid="input-edit-contact"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>이메일</Label>
-                <Input
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  data-testid="input-edit-email"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label>사업자등록번호</Label>
                 <Input
                   value={editForm.businessNumber}
@@ -236,20 +223,6 @@ export default function AdvertiserDetail() {
                 <div>
                   <p className="text-sm text-muted-foreground">대표이사</p>
                   <p className="font-medium" data-testid="text-ceo">{advertiser.ceoName || "-"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">연락처</p>
-                  <p className="font-medium" data-testid="text-contact">{advertiser.contact}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">이메일</p>
-                  <p className="font-medium" data-testid="text-email">{advertiser.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
