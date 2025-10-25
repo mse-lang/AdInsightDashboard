@@ -13,13 +13,6 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge, AdStatus } from "./status-badge";
 import { MemoDialog } from "./memo-dialog";
 import { Search, Eye } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export interface Advertiser {
   id: string;
@@ -119,23 +112,13 @@ export function AdvertiserTable({ advertisers, onViewDetails, onStatusChange, on
                     {advertiser.email}
                   </TableCell>
                   <TableCell>
-                    <Select
-                      value={advertiser.status}
-                      onValueChange={(value) => onStatusChange?.(advertiser.id, value as AdStatus)}
+                    <div 
+                      className="cursor-pointer inline-block"
+                      onClick={() => onEditAdvertiser?.(advertiser.id)}
+                      data-testid={`cell-status-${advertiser.id}`}
                     >
-                      <SelectTrigger className="w-[200px]" data-testid={`select-status-${advertiser.id}`}>
-                        <SelectValue>
-                          <StatusBadge status={advertiser.status} />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allStatuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            <StatusBadge status={status} />
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <StatusBadge status={advertiser.status} />
+                    </div>
                   </TableCell>
                   <TableCell className="text-right font-mono">{advertiser.amount}</TableCell>
                   <TableCell className="text-muted-foreground">{advertiser.date}</TableCell>
