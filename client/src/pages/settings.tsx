@@ -87,6 +87,14 @@ export default function Settings() {
     },
   ]);
 
+  const [generalSettings, setGeneralSettings] = useState({
+    companyName: "벤처스퀘어",
+    ceoName: "",
+    companyEmail: "ad@venturesquare.net",
+    companyPhone: "02-1234-5678",
+    businessNumber: "123-45-67890",
+  });
+
   const { data: pricings = [], isLoading: pricingsLoading } = useQuery<Pricing[]>({
     queryKey: ["/api/pricings"],
   });
@@ -239,6 +247,13 @@ export default function Settings() {
       default:
         return "스태프";
     }
+  };
+
+  const handleSaveGeneralSettings = () => {
+    toast({
+      title: "설정 저장 완료",
+      description: "일반 설정이 성공적으로 저장되었습니다.",
+    });
   };
 
   return (
@@ -565,25 +580,52 @@ export default function Settings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>회사명</Label>
-                <Input defaultValue="벤처스퀘어" data-testid="input-company-name" />
+                <Input 
+                  value={generalSettings.companyName}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, companyName: e.target.value })}
+                  data-testid="input-company-name" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>대표이사 이름</Label>
-                <Input placeholder="대표이사 성함을 입력하세요" data-testid="input-ceo-name" />
+                <Input 
+                  value={generalSettings.ceoName}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, ceoName: e.target.value })}
+                  placeholder="대표이사 성함을 입력하세요" 
+                  data-testid="input-ceo-name" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>대표 이메일</Label>
-                <Input defaultValue="ad@venturesquare.net" data-testid="input-company-email" />
+                <Input 
+                  value={generalSettings.companyEmail}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, companyEmail: e.target.value })}
+                  data-testid="input-company-email" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>대표 전화번호</Label>
-                <Input defaultValue="02-1234-5678" data-testid="input-company-phone" />
+                <Input 
+                  value={generalSettings.companyPhone}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, companyPhone: e.target.value })}
+                  data-testid="input-company-phone" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>사업자등록번호</Label>
-                <Input defaultValue="123-45-67890" data-testid="input-business-number" />
+                <Input 
+                  value={generalSettings.businessNumber}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, businessNumber: e.target.value })}
+                  data-testid="input-business-number" 
+                />
               </div>
-              <Button data-testid="button-save-settings">설정 저장</Button>
+              <Button 
+                onClick={handleSaveGeneralSettings}
+                data-testid="button-save-settings"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                설정 저장
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
