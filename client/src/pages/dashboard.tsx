@@ -3,6 +3,7 @@ import { StatCard } from "@/components/stat-card";
 import { ProgressPipeline } from "@/components/progress-pipeline";
 import { AdvertiserTable } from "@/components/advertiser-table";
 import { PerformanceChart } from "@/components/performance-chart";
+import { SalesPieChart } from "@/components/sales-pie-chart";
 import { NotificationBanner } from "@/components/notification-banner";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
 
@@ -60,6 +61,13 @@ export default function Dashboard() {
     { month: "6월", amount: 5500 },
   ];
 
+  const mockPieData = [
+    { name: "메인배너", value: 8000 },
+    { name: "사이드배너", value: 4500 },
+    { name: "뉴스레터", value: 2400 },
+    { name: "eDM", value: 3200 },
+  ];
+
   return (
     <div className="space-y-6" data-testid="page-dashboard">
       {hasNotification && (
@@ -90,10 +98,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PerformanceChart data={mockChartData} />
-        <PerformanceChart
-          data={mockChartData}
-          title="구좌별 판매 현황"
-        />
+        <SalesPieChart data={mockPieData} />
       </div>
 
       <AdvertiserTable
