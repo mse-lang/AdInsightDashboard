@@ -63,14 +63,12 @@ export default function Settings() {
   });
 
   const [editedPricings, setEditedPricings] = useState<Record<number, Partial<Pricing>>>({});
+  const [focusedPriceInput, setFocusedPriceInput] = useState<number | null>(null);
 
   const updatePricingMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<Pricing> }) => {
-      return await apiRequest(`/api/pricings/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const res = await apiRequest("PATCH", `/api/pricings/${id}`, data);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pricings"] });
@@ -78,6 +76,13 @@ export default function Settings() {
       toast({
         title: "단가 업데이트 완료",
         description: "단가표가 성공적으로 업데이트되었습니다.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "저장 실패",
+        description: error.message || "단가 업데이트에 실패했습니다.",
+        variant: "destructive",
       });
     },
   });
@@ -272,11 +277,13 @@ export default function Settings() {
                           </TableCell>
                           <TableCell>
                             <Input
-                              value={formatCurrency(currentPrice)}
+                              value={focusedPriceInput === pricing.id ? currentPrice : formatCurrency(currentPrice)}
                               onChange={(e) => {
                                 const numericValue = e.target.value.replace(/[^0-9]/g, '');
                                 handlePricingEdit(pricing.id, "price", numericValue);
                               }}
+                              onFocus={() => setFocusedPriceInput(pricing.id)}
+                              onBlur={() => setFocusedPriceInput(null)}
                               className="font-mono"
                               data-testid={`input-price-${pricing.id}`}
                             />
