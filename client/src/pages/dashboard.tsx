@@ -19,6 +19,17 @@ export default function Dashboard() {
     queryKey: ["/api/advertisers"],
   });
 
+  const { data: calendarEvents = [] } = useQuery<Array<{
+    id: string;
+    advertiser: string;
+    slot: string;
+    startDate: string;
+    endDate: string;
+    status: "부킹확정" | "집행중";
+  }>>({
+    queryKey: ["/api/calendar/ad-materials"],
+  });
+
   const monthlyRevenue = useMemo(() => {
     const revenueStatuses = ["세금계산서 발행 및 대금 청구", "매출 입금"];
     const total = advertisers
@@ -119,25 +130,6 @@ export default function Dashboard() {
     { name: "eDM", value: 3200 },
   ];
 
-  const mockCalendarEvents = [
-    {
-      id: "1",
-      advertiser: "테크스타트업",
-      slot: "메인배너",
-      startDate: "2024-01-15",
-      endDate: "2024-01-25",
-      status: "집행중" as const,
-    },
-    {
-      id: "2",
-      advertiser: "이커머스컴퍼니",
-      slot: "사이드배너",
-      startDate: "2024-01-20",
-      endDate: "2024-02-05",
-      status: "부킹확정" as const,
-    },
-  ];
-
   return (
     <div className="space-y-6" data-testid="page-dashboard">
       {hasNotification && (
@@ -178,7 +170,7 @@ export default function Dashboard() {
 
       <ProgressPipeline stages={mockStages} />
 
-      <CalendarView events={mockCalendarEvents} />
+      <CalendarView events={calendarEvents} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PerformanceChart data={mockChartData} />

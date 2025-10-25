@@ -132,23 +132,41 @@ export function AdSlotDialog({ open, onOpenChange, date, events }: AdSlotDialogP
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between p-2 bg-muted rounded-md mt-2"
+                      className="p-3 bg-muted rounded-md mt-2"
                       data-testid={`event-${event.id}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm">{event.advertiser}</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm font-medium">{event.advertiser}</span>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            event.status === "집행중"
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              : "bg-green-50 text-green-700 border-green-200"
+                          }
+                        >
+                          {event.status}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          event.status === "집행중"
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                            : "bg-green-50 text-green-700 border-green-200"
-                        }
-                      >
-                        {event.status}
-                      </Badge>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>
+                          {new Date(event.startDate).toLocaleDateString("ko-KR", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                          {" ~ "}
+                          {new Date(event.endDate).toLocaleDateString("ko-KR", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </div>
                     </div>
                   ))}
               </div>
