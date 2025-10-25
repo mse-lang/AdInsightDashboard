@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge, AdStatus } from "./status-badge";
+import { useLocation } from "wouter";
 
 interface PipelineStage {
   status: AdStatus;
@@ -11,6 +12,12 @@ interface ProgressPipelineProps {
 }
 
 export function ProgressPipeline({ stages }: ProgressPipelineProps) {
+  const [, setLocation] = useLocation();
+
+  const handleStageClick = (status: AdStatus) => {
+    setLocation(`/ad-slots?status=${encodeURIComponent(status)}`);
+  };
+
   return (
     <Card data-testid="card-progress-pipeline">
       <CardHeader>
@@ -19,7 +26,14 @@ export function ProgressPipeline({ stages }: ProgressPipelineProps) {
       <CardContent>
         <div className="flex flex-wrap gap-2">
           {stages.map((stage) => (
-            <StatusBadge key={stage.status} status={stage.status} count={stage.count} />
+            <div
+              key={stage.status}
+              onClick={() => handleStageClick(stage.status)}
+              className="cursor-pointer hover-elevate active-elevate-2"
+              data-testid={`pipeline-stage-${stage.status}`}
+            >
+              <StatusBadge status={stage.status} count={stage.count} />
+            </div>
           ))}
         </div>
       </CardContent>

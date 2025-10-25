@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Upload, Calendar, FileImage, Edit } from "lucide-react";
+import { Plus, Upload, Calendar, FileImage, Edit, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
 import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
@@ -34,6 +34,9 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import type { Advertiser, Pricing } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+import type { AdStatus } from "@/components/status-badge";
+import { getStatusColor } from "@/components/status-badge";
 
 interface AdMaterial {
   id: string;
@@ -48,12 +51,25 @@ interface AdMaterial {
 
 type SlotStatus = "available" | "partial" | "full";
 
+const ALL_STATUSES: AdStatus[] = [
+  "문의중",
+  "견적제시",
+  "일정조율중",
+  "부킹확정",
+  "집행중",
+  "결과보고",
+  "세금계산서 발행 및 대금 청구",
+  "매출 입금",
+];
+
 export default function AdSlotsDetailed() {
+  const [location, setLocation] = useLocation();
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<AdMaterial | null>(null);
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
   const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<number | null>(null);
   const [isAdvertiserDialogOpen, setIsAdvertiserDialogOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<AdStatus | null>(null);
   
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isSelectAdvertiserForUpload, setIsSelectAdvertiserForUpload] = useState(false);
@@ -75,6 +91,15 @@ export default function AdSlotsDetailed() {
   });
   
   const { toast } = useToast();
+
+  // URL 쿼리 파라미터에서 status 읽기
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const statusParam = params.get('status');
+    if (statusParam && ALL_STATUSES.includes(statusParam as AdStatus)) {
+      setSelectedStatus(statusParam as AdStatus);
+    }
+  }, [location]);
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
@@ -159,6 +184,29 @@ export default function AdSlotsDetailed() {
       status: "종료",
     },
   ] : [];
+
+  // Advertiser의 상태로 필터링
+  const filteredMaterials = useMemo(() => {
+    if (!selectedStatus) return mockMaterials;
+    
+    return mockMaterials.filter(material => {
+      const advertiser = advertisers.find(a => a.id.toString() === material.advertiserId);
+      return advertiser && advertiser.status === selectedStatus;
+    });
+  }, [mockMaterials, selectedStatus, advertisers]);
+
+  // 배지 토글 핸들러
+  const handleStatusToggle = (status: AdStatus) => {
+    if (selectedStatus === status) {
+      // 이미 선택된 상태면 off (필터 제거)
+      setSelectedStatus(null);
+      setLocation("/ad-slots");
+    } else {
+      // 새로운 상태 선택 (on)
+      setSelectedStatus(status);
+      setLocation(`/ad-slots?status=${encodeURIComponent(status)}`);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -263,7 +311,7 @@ export default function AdSlotsDetailed() {
     <div className="space-y-6" data-testid="page-ad-slots-detailed">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">광고 구좌 관리</h1>
+          <h1 className="text-3xl font-bold">광고 집행 관리</h1>
           <p className="text-muted-foreground mt-1">광고 구좌별 현황을 확인하고 관리하세요</p>
         </div>
         <Button 
@@ -273,6 +321,23 @@ export default function AdSlotsDetailed() {
           <Plus className="h-4 w-4 mr-2" />
           구좌 추가
         </Button>
+      </div>
+
+      {/* 상태 필터 배지 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-muted-foreground">상태 필터:</span>
+        {ALL_STATUSES.map((status) => (
+          <Badge
+            key={status}
+            variant={selectedStatus === status ? "default" : "outline"}
+            className={`cursor-pointer hover-elevate ${selectedStatus === status ? getStatusColor(status) : ""}`}
+            onClick={() => handleStatusToggle(status)}
+            data-testid={`filter-status-${status}`}
+          >
+            {status}
+            {selectedStatus === status && <X className="h-3 w-3 ml-1" />}
+          </Badge>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -368,8 +433,15 @@ export default function AdSlotsDetailed() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockMaterials.map((material) => (
-                <TableRow key={material.id} data-testid={`row-material-${material.id}`}>
+              {filteredMaterials.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {selectedStatus ? `"${selectedStatus}" 상태의 광고 소재가 없습니다` : "광고 소재가 없습니다"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredMaterials.map((material) => (
+                  <TableRow key={material.id} data-testid={`row-material-${material.id}`}>
                   <TableCell 
                     className="font-medium cursor-pointer hover:text-primary hover:underline"
                     onClick={() => handleAdvertiserClick(material.advertiserId)}
@@ -440,7 +512,8 @@ export default function AdSlotsDetailed() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              )))
+              }
             </TableBody>
           </Table>
         </CardContent>
