@@ -1,46 +1,44 @@
 import { AdvertiserTable } from "@/components/advertiser-table";
 import { AddAdvertiserDialog } from "@/components/add-advertiser-dialog";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Advertiser } from "@shared/schema";
+import { useLocation } from "wouter";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Advertisers() {
-  // Mock data - todo: remove mock functionality
-  const mockAdvertisers = [
-    {
-      id: "1",
-      name: "테크스타트업",
-      contact: "010-1234-5678",
-      email: "contact@techstartup.com",
-      status: "집행중" as const,
-      amount: "₩5,000,000",
-      date: "2024-01-15",
+  const [, setLocation] = useLocation();
+  
+  const { data: advertisers = [], isLoading } = useQuery<Advertiser[]>({
+    queryKey: ["/api/advertisers"],
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      return await apiRequest("PATCH", `/api/advertisers/${id}`, { status });
     },
-    {
-      id: "2",
-      name: "이커머스컴퍼니",
-      contact: "010-9876-5432",
-      email: "ad@ecommerce.com",
-      status: "견적제시" as const,
-      amount: "₩3,000,000",
-      date: "2024-01-20",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/advertisers"] });
     },
-    {
-      id: "3",
-      name: "핀테크솔루션",
-      contact: "010-5555-1234",
-      email: "marketing@fintech.com",
-      status: "문의중" as const,
-      amount: "₩8,000,000",
-      date: "2024-01-22",
-    },
-    {
-      id: "4",
-      name: "모빌리티플랫폼",
-      contact: "010-7777-8888",
-      email: "ads@mobility.com",
-      status: "부킹확정" as const,
-      amount: "₩6,500,000",
-      date: "2024-01-18",
-    },
-  ];
+  });
+
+  const handleStatusChange = (id: string, status: string) => {
+    updateStatusMutation.mutate({ id: parseInt(id), status });
+  };
+
+  const handleViewDetails = (id: string) => {
+    setLocation(`/advertisers/${id}`);
+  };
+
+  const mappedAdvertisers = advertisers.map((adv) => ({
+    id: adv.id.toString(),
+    name: adv.name,
+    contact: adv.contact,
+    email: adv.email,
+    status: adv.status as any,
+    amount: adv.amount ? `₩${parseInt(adv.amount).toLocaleString()}` : "₩0",
+    date: adv.inquiryDate,
+  }));
 
   return (
     <div className="space-y-6" data-testid="page-advertisers">
@@ -49,14 +47,22 @@ export default function Advertisers() {
           <h1 className="text-3xl font-bold">광고주 관리</h1>
           <p className="text-muted-foreground mt-1">모든 광고주를 관리하고 상태를 추적하세요</p>
         </div>
-        <AddAdvertiserDialog onAdd={(data) => console.log("New advertiser:", data)} />
+        <AddAdvertiserDialog />
       </div>
 
-      <AdvertiserTable
-        advertisers={mockAdvertisers}
-        onViewDetails={(id) => console.log("View details:", id)}
-        onStatusChange={(id, status) => console.log("Status changed:", id, status)}
-      />
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      ) : (
+        <AdvertiserTable
+          advertisers={mappedAdvertisers}
+          onViewDetails={handleViewDetails}
+          onStatusChange={handleStatusChange}
+        />
+      )}
     </div>
   );
 }

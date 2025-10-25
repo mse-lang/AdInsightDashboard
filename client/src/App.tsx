@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Advertisers from "@/pages/advertisers";
+import AdvertiserDetail from "@/pages/advertiser-detail";
 import AdSlots from "@/pages/ad-slots-detailed";
 import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
@@ -20,6 +21,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/advertisers" component={Advertisers} />
+      <Route path="/advertisers/:id" component={AdvertiserDetail} />
       <Route path="/ad-slots" component={AdSlots} />
       <Route path="/quotes" component={Quotes} />
       <Route path="/analytics" component={Analytics} />

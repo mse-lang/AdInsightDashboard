@@ -79,6 +79,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  app.get("/api/memos/advertiser/:id", async (req, res) => {
+    const advertiserId = parseInt(req.params.id);
+    const memos = await storage.getMemosByAdvertiserId(advertiserId);
+    res.json(memos);
+  });
+
   app.get("/api/ad-slots", async (req, res) => {
     const slots = await storage.getAdSlots();
     res.json(slots);
@@ -86,6 +92,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/ad-materials", async (req, res) => {
     const materials = await storage.getAdMaterials();
+    res.json(materials);
+  });
+
+  app.get("/api/ad-materials/advertiser/:id", async (req, res) => {
+    const advertiserId = parseInt(req.params.id);
+    const materials = await storage.getAdMaterialsByAdvertiserId(advertiserId);
     res.json(materials);
   });
 

@@ -1,6 +1,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +41,7 @@ const advertiserSchema = z.object({
   businessNumber: z.string().optional(),
   ceoName: z.string().optional(),
   status: z.string(),
+  inquiryDate: z.string(),
 });
 
 type AdvertiserFormData = z.infer<typeof advertiserSchema>;
@@ -57,6 +62,9 @@ const allStatuses: AdStatus[] = [
 ];
 
 export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  
   const form = useForm<AdvertiserFormData>({
     resolver: zodResolver(advertiserSchema),
     defaultValues: {
@@ -66,16 +74,39 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
       businessNumber: "",
       ceoName: "",
       status: "문의중",
+      inquiryDate: new Date().toISOString().split('T')[0],
+    },
+  });
+
+  const createAdvertiserMutation = useMutation({
+    mutationFn: async (data: AdvertiserFormData) => {
+      return await apiRequest("POST", "/api/advertisers", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/advertisers"] });
+      toast({
+        title: "광고주 추가 완료",
+        description: "새로운 광고주가 추가되었습니다.",
+      });
+      form.reset();
+      setOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "오류 발생",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const onSubmit = (data: AdvertiserFormData) => {
+    createAdvertiserMutation.mutate(data);
     onAdd?.(data);
-    form.reset();
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button data-testid="button-add-advertiser">
           <Plus className="h-4 w-4 mr-2" />
@@ -209,11 +240,15 @@ export function AddAdvertiserDialog({ onAdd }: AddAdvertiserDialogProps) {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 취소
               </Button>
-              <Button type="submit" data-testid="button-submit-advertiser">
-                추가
+              <Button 
+                type="submit" 
+                data-testid="button-submit-advertiser"
+                disabled={createAdvertiserMutation.isPending}
+              >
+                {createAdvertiserMutation.isPending ? "추가 중..." : "추가"}
               </Button>
             </div>
           </form>
