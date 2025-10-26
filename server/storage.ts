@@ -16,7 +16,11 @@ import type {
   Pricing,
   InsertPricing,
   Ad,
-  InsertAd
+  InsertAd,
+  User,
+  InsertUser,
+  AuthToken,
+  InsertAuthToken
 } from "@shared/schema";
 
 export interface IStorage {
@@ -67,6 +71,13 @@ export interface IStorage {
   createAd(data: InsertAd): Promise<Ad>;
   updateAd(id: number, data: Partial<InsertAd>): Promise<Ad | undefined>;
   deleteAd(id: number): Promise<boolean>;
+  
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(data: InsertUser): Promise<User>;
+  createAuthToken(data: InsertAuthToken): Promise<AuthToken>;
+  getAuthToken(token: string): Promise<AuthToken | undefined>;
+  consumeAuthToken(token: string): Promise<boolean>;
+  deleteExpiredTokens(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -79,6 +90,8 @@ export class MemStorage implements IStorage {
   private materials: Material[] = [];
   private pricings: Pricing[] = [];
   private ads: Ad[] = [];
+  private users: User[] = [];
+  private authTokens: AuthToken[] = [];
   
   private nextAdvertiserId = 1;
   private nextContactId = 1;
@@ -89,6 +102,8 @@ export class MemStorage implements IStorage {
   private nextMaterialId = 1;
   private nextPricingId = 1;
   private nextAdId = 1;
+  private nextUserId = 1;
+  private nextAuthTokenId = 1;
 
   constructor() {
     this.initializeDefaultPricings();
@@ -602,6 +617,51 @@ export class MemStorage implements IStorage {
     
     this.ads.splice(index, 1);
     return true;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return this.users.find(u => u.email === email);
+  }
+
+  async createUser(data: InsertUser): Promise<User> {
+    const user: User = {
+      id: this.nextUserId++,
+      email: data.email,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.push(user);
+    return user;
+  }
+
+  async createAuthToken(data: InsertAuthToken): Promise<AuthToken> {
+    const token: AuthToken = {
+      id: this.nextAuthTokenId++,
+      token: data.token,
+      email: data.email,
+      expiresAt: data.expiresAt,
+      consumed: data.consumed ?? false,
+      createdAt: new Date(),
+    };
+    this.authTokens.push(token);
+    return token;
+  }
+
+  async getAuthToken(token: string): Promise<AuthToken | undefined> {
+    return this.authTokens.find(t => t.token === token);
+  }
+
+  async consumeAuthToken(token: string): Promise<boolean> {
+    const authToken = this.authTokens.find(t => t.token === token);
+    if (!authToken) return false;
+    
+    authToken.consumed = true;
+    return true;
+  }
+
+  async deleteExpiredTokens(): Promise<void> {
+    const now = new Date();
+    this.authTokens = this.authTokens.filter(t => t.expiresAt > now);
   }
 }
 
