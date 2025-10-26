@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { DialogFooter } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import type { Advertiser, Pricing } from "@shared/schema";
+import type { Advertiser, Pricing, Ad } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import type { AdStatus } from "@/components/status-badge";
@@ -40,13 +40,14 @@ import { getStatusColor } from "@/components/status-badge";
 
 interface AdMaterial {
   id: string;
+  adId: string;
   advertiserId: string;
   slot: string;
   fileName: string;
   startDate: string;
   endDate: string;
   amount: string;
-  status: "예정" | "진행중" | "종료";
+  status: AdStatus | "예정" | "진행중" | "종료";
 }
 
 type SlotStatus = "available" | "partial" | "full";
@@ -111,6 +112,10 @@ export default function AdSlotsDetailed() {
     queryKey: ["/api/pricings"],
   });
 
+  const { data: ads = [] } = useQuery<Ad[]>({
+    queryKey: ["/api/ads"],
+  });
+
   const getAdvertiserName = (advertiserId: string): string => {
     const advertiser = advertisers.find(a => a.id.toString() === advertiserId);
     return advertiser?.name || "알 수 없음";
@@ -154,47 +159,69 @@ export default function AdSlotsDetailed() {
     },
   ];
 
-  const mockMaterials: AdMaterial[] = advertisers.length > 0 ? [
-    {
-      id: "1",
-      advertiserId: advertisers[0]?.id.toString() || "1",
-      slot: "메인배너",
-      fileName: "banner_tech_2024.jpg",
-      startDate: "2024-01-15",
-      endDate: "2024-01-31",
-      amount: "₩1,000,000",
-      status: "진행중",
-    },
-    {
-      id: "2",
-      advertiserId: advertisers[1]?.id.toString() || "2",
-      slot: "메인배너",
-      fileName: "ecom_banner.png",
-      startDate: "2024-02-01",
-      endDate: "2024-02-28",
-      amount: "₩1,000,000",
-      status: "예정",
-    },
-    {
-      id: "3",
-      advertiserId: advertisers[2]?.id.toString() || "3",
-      slot: "사이드배너 2",
-      fileName: "fintech_side.jpg",
-      startDate: "2024-01-01",
-      endDate: "2024-01-15",
-      amount: "₩500,000",
-      status: "종료",
-    },
-  ] : [];
+  // ads 데이터를 AdMaterial 형식으로 변환
+  // 실제 데이터가 없으면 mock 데이터 사용
+  const mockMaterials: AdMaterial[] = ads.length > 0 
+    ? ads.map((ad) => ({
+        id: ad.id.toString(),
+        adId: ad.adId,
+        advertiserId: ad.advertiserId.toString(),
+        slot: ad.description || "-",
+        fileName: "광고 소재 파일",
+        startDate: ad.startDate || "-",
+        endDate: ad.endDate || "-",
+        amount: ad.amount ? `₩${parseInt(ad.amount).toLocaleString()}` : "-",
+        status: ad.status as AdStatus | "예정" | "진행중" | "종료",
+      }))
+    : (advertisers.length > 0 ? [
+        {
+          id: "1",
+          adId: "VSAD-0001",
+          advertiserId: advertisers[0]?.id.toString() || "1",
+          slot: "메인배너",
+          fileName: "banner_tech_2024.jpg",
+          startDate: "2024-01-15",
+          endDate: "2024-01-31",
+          amount: "₩1,000,000",
+          status: "진행중",
+        },
+        {
+          id: "2",
+          adId: "VSAD-0002",
+          advertiserId: advertisers[1]?.id.toString() || "2",
+          slot: "메인배너",
+          fileName: "ecom_banner.png",
+          startDate: "2024-02-01",
+          endDate: "2024-02-28",
+          amount: "₩1,000,000",
+          status: "예정",
+        },
+        {
+          id: "3",
+          adId: "VSAD-0003",
+          advertiserId: advertisers[2]?.id.toString() || "3",
+          slot: "사이드배너 2",
+          fileName: "fintech_side.jpg",
+          startDate: "2024-01-01",
+          endDate: "2024-01-15",
+          amount: "₩500,000",
+          status: "종료",
+        },
+      ] : []);
 
-  // Advertiser의 상태로 필터링
+  // Advertiser의 상태로 필터링하고 광고 ID 최신순으로 정렬
   const filteredMaterials = useMemo(() => {
-    if (!selectedStatus) return mockMaterials;
+    let filtered = mockMaterials;
     
-    return mockMaterials.filter(material => {
-      const advertiser = advertisers.find(a => a.id.toString() === material.advertiserId);
-      return advertiser && advertiser.status === selectedStatus;
-    });
+    if (selectedStatus) {
+      filtered = mockMaterials.filter(material => {
+        const advertiser = advertisers.find(a => a.id.toString() === material.advertiserId);
+        return advertiser && advertiser.status === selectedStatus;
+      });
+    }
+    
+    // 광고 ID 기준 최신순 정렬 (VSAD-0003, VSAD-0002, VSAD-0001)
+    return [...filtered].sort((a, b) => b.adId.localeCompare(a.adId));
   }, [mockMaterials, selectedStatus, advertisers]);
 
   // 배지 토글 핸들러
@@ -207,19 +234,6 @@ export default function AdSlotsDetailed() {
       // 새로운 상태 선택 (on)
       setSelectedStatus(status);
       setLocation(`/ad-slots?status=${encodeURIComponent(status)}`);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "진행중":
-        return "bg-indigo-100 text-indigo-700 border-indigo-200";
-      case "예정":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "종료":
-        return "bg-gray-100 text-gray-700 border-gray-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
@@ -432,6 +446,7 @@ export default function AdSlotsDetailed() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>광고 ID</TableHead>
                 <TableHead>광고주</TableHead>
                 <TableHead>구좌</TableHead>
                 <TableHead>파일명</TableHead>
@@ -444,13 +459,16 @@ export default function AdSlotsDetailed() {
             <TableBody>
               {filteredMaterials.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     {selectedStatus ? `"${selectedStatus}" 상태의 광고 소재가 없습니다` : "광고 소재가 없습니다"}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredMaterials.map((material) => (
                   <TableRow key={material.id} data-testid={`row-material-${material.id}`}>
+                  <TableCell className="font-mono font-medium" data-testid={`cell-ad-id-${material.id}`}>
+                    {material.adId}
+                  </TableCell>
                   <TableCell 
                     className="font-medium cursor-pointer hover:text-primary hover:underline"
                     onClick={() => handleAdvertiserClick(material.advertiserId)}

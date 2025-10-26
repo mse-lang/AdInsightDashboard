@@ -26,8 +26,12 @@ const statusColors: Record<AdStatus, string> = {
   "매출 입금": "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
 
+export function getStatusColor(status: string): string {
+  return statusColors[status as AdStatus] || "bg-gray-100 text-gray-700 border-gray-200";
+}
+
 export function StatusBadge({ status, count }: StatusBadgeProps) {
-  const colorClass = statusColors[status] || "bg-gray-100 text-gray-700 border-gray-200";
+  const colorClass = getStatusColor(status);
   
   return (
     <Badge 
