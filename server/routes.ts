@@ -2,9 +2,93 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema, insertAdSchema } from "@shared/schema";
-import jwt from "jsonwebtoken";
+import { setupAuth, isAuthenticated, isAdminEmail, createAuthToken, verifyAuthToken, sendMagicLink } from "./auth";
+import { z } from "zod";
+
+const ADMIN_EMAIL = 'ad@venturesquare.net';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await setupAuth(app);
+
+  // Public auth routes
+  app.post("/api/auth/request-link", async (req, res) => {
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+      
+      if (email !== ADMIN_EMAIL) {
+        return res.status(403).json({ 
+          error: "이 이메일 주소는 등록되지 않았습니다. 관리자에게 문의하세요." 
+        });
+      }
+
+      let user = await storage.getUserByEmail(email);
+      if (!user) {
+        user = await storage.createUser({ email });
+      }
+
+      const token = await createAuthToken(email);
+      await sendMagicLink(email, token);
+
+      res.json({ 
+        success: true, 
+        message: "인증 링크가 이메일로 발송되었습니다." 
+      });
+    } catch (error) {
+      console.error("Error requesting magic link:", error);
+      res.status(500).json({ error: "인증 링크 발송에 실패했습니다." });
+    }
+  });
+
+  app.get("/api/auth/verify", async (req, res) => {
+    try {
+      const { token } = z.object({ token: z.string() }).parse(req.query);
+      
+      const email = await verifyAuthToken(token);
+      
+      if (!email) {
+        return res.status(401).json({ 
+          error: "유효하지 않거나 만료된 토큰입니다." 
+        });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+      }
+
+      req.session.userId = user.id;
+      req.session.email = user.email;
+
+      res.json({ success: true, user });
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      res.status(500).json({ error: "인증에 실패했습니다." });
+    }
+  });
+
+  app.get("/api/auth/user", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const user = await storage.getUserByEmail(req.session.email!);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user);
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "로그아웃에 실패했습니다." });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  // Protected routes - all existing routes now require authentication
   app.get("/api/advertisers", async (req, res) => {
     const advertisers = await storage.getAdvertisers();
     res.json(advertisers);
