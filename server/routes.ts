@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema, insertAdSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdminEmail, createAuthToken, verifyAuthToken, sendMagicLink } from "./auth";
 import { z } from "zod";
+import jwt from "jsonwebtoken";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 

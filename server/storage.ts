@@ -193,6 +193,9 @@ export class MemStorage implements IStorage {
         status: data.status,
         inquiryDate: data.inquiryDate,
         amount: data.amount,
+        businessRegFile: null,
+        bankAccountFile: null,
+        logoFile: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -207,7 +210,6 @@ export class MemStorage implements IStorage {
         position: testContacts[index].position,
         isPrimary: testContacts[index].isPrimary,
         createdAt: new Date(),
-        updatedAt: new Date(),
       };
       this.contacts.push(contact);
     });
