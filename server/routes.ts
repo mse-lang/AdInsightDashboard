@@ -9,8 +9,11 @@ import jwt from "jsonwebtoken";
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  await setupAuth(app);
+  // 인증 기능 비활성화 - 주석 처리됨
+  // await setupAuth(app);
 
+  // 인증 라우트 전체 비활성화됨
+  /*
   // Public auth routes
   app.post("/api/auth/request-link", async (req, res) => {
     try {
@@ -145,8 +148,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
 
-  // Protected routes - all existing routes now require authentication
+  // Public routes - 인증 없이 모든 라우트 접근 가능
   app.get("/api/advertisers", async (req, res) => {
     const advertisers = await storage.getAdvertisers();
     res.json(advertisers);

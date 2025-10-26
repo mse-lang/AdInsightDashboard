@@ -4,9 +4,20 @@
 
 A Korean-language advertising management dashboard for Venture Square, built to streamline the entire advertising sales lifecycle from initial inquiry through invoicing and payment tracking. The application manages advertisers, ad slots, quotes, materials, and performance analytics with a focus on Korean business workflows and terminology.
 
+**Public Access**: The application is publicly accessible without authentication requirements, designed for internal use within a trusted network environment.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+**2025-10-26**: Removed authentication system
+- Disabled email-based magic link authentication
+- Application now directly accessible without login
+- Removed login and verification pages from routing
+- Authentication routes commented out in server (can be re-enabled if needed)
+- Users can access all features immediately upon visiting the application URL
 
 ## System Architecture
 
@@ -66,7 +77,20 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication and Authorization
 
-Currently not implemented. The application appears designed for internal use without authentication mechanisms in place. Future implementation would likely require session-based or JWT authentication.
+**Status**: Disabled (as of 2025-10-26)
+
+The application is publicly accessible without authentication. All authentication code has been commented out but preserved in the codebase for potential future use:
+- Email-based magic link authentication (using Resend)
+- Session management with PostgreSQL-backed sessions
+- User table and auth tokens table in database schema
+
+**Note**: The authentication infrastructure remains in the codebase (commented out) and can be re-enabled by:
+1. Uncommenting auth routes in `server/routes.ts`
+2. Uncommenting auth setup in `registerRoutes()`
+3. Restoring auth-related imports and components in `client/src/App.tsx`
+4. Verifying the domain on Resend for email delivery
+
+**Current Access Model**: Open access - anyone with the application URL can use all features without restriction.
 
 ### External Dependencies
 
@@ -97,7 +121,11 @@ Currently not implemented. The application appears designed for internal use wit
 - clsx and tailwind-merge for conditional class management
 
 **Session Management**:
-- connect-pg-simple for PostgreSQL-backed sessions (configured but authentication not fully implemented)
+- connect-pg-simple for PostgreSQL-backed sessions (configured but currently disabled)
+
+**Email Service**:
+- Resend integration for email delivery (configured but currently unused)
+- Magic link authentication system (implemented but disabled)
 
 ### Key Architectural Patterns
 
