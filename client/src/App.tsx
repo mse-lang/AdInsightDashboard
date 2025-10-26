@@ -52,11 +52,14 @@ function ProtectedRouter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/login");
       toast({
         title: "로그아웃 완료",
         description: "성공적으로 로그아웃되었습니다.",
       });
+      // Force reload to clear all state and redirect to login
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     },
   });
 

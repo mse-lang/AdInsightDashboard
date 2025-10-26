@@ -27,6 +27,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user = await storage.createUser({ email });
       }
 
+      // Development mode: auto-login without email
+      if (process.env.NODE_ENV === 'development') {
+        req.session.userId = user.id;
+        req.session.email = user.email;
+        
+        return res.json({ 
+          success: true, 
+          autoLogin: true,
+          message: "자동 로그인되었습니다." 
+        });
+      }
+
+      // Production mode: send magic link
       const token = await createAuthToken(email);
       await sendMagicLink(email, token);
 

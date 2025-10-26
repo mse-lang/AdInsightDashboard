@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,14 +30,28 @@ export default function Login() {
 
   const requestLinkMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      return await apiRequest("POST", "/api/auth/request-link", data);
+      const res = await apiRequest("POST", "/api/auth/request-link", data);
+      return await res.json();
     },
-    onSuccess: () => {
-      setLinkSent(true);
-      toast({
-        title: "이메일 발송 완료",
-        description: "인증 링크가 이메일로 발송되었습니다. 메일함을 확인하세요.",
-      });
+    onSuccess: (data) => {
+      if (data.autoLogin) {
+        // Auto-login in development mode
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
+        toast({
+          title: "로그인 완료",
+          description: "자동으로 로그인되었습니다.",
+        });
+      } else {
+        // Show email sent message in production mode
+        setLinkSent(true);
+        toast({
+          title: "이메일 발송 완료",
+          description: "인증 링크가 이메일로 발송되었습니다. 메일함을 확인하세요.",
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
