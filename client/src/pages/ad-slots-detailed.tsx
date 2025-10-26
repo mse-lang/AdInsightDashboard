@@ -754,11 +754,11 @@ export default function AdSlotsDetailed() {
 
           <div className="space-y-4">
             <div>
-              <Label>구좌명</Label>
+              <Label>광고 소재 이름</Label>
               <Input
                 value={newSlotData.name}
                 onChange={(e) => setNewSlotData({ ...newSlotData, name: e.target.value })}
-                placeholder="예: 메인배너, 사이드배너"
+                placeholder="예: 벤처 기자단 모집 메인, 벤처 기자단 eDM 등"
                 data-testid="input-slot-name"
               />
             </div>
