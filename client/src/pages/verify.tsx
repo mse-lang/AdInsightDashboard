@@ -13,7 +13,7 @@ export default function Verify() {
 
   const verifyMutation = useMutation({
     mutationFn: async (token: string) => {
-      return await apiRequest(`/api/auth/verify?token=${encodeURIComponent(token)}`);
+      return await apiRequest("GET", `/api/auth/verify?token=${encodeURIComponent(token)}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });

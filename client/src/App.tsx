@@ -48,7 +48,7 @@ function ProtectedRouter() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/auth/logout", "POST");
+      return await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });

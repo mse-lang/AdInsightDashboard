@@ -30,7 +30,7 @@ export default function Login() {
 
   const requestLinkMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      return await apiRequest("/api/auth/request-link", "POST", data);
+      return await apiRequest("POST", "/api/auth/request-link", data);
     },
     onSuccess: () => {
       setLinkSent(true);
