@@ -40,16 +40,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Production mode: send magic link
-      const token = await createAuthToken(email);
-      await sendMagicLink(email, token);
+      try {
+        const token = await createAuthToken(email);
+        console.log('[AUTH] Created auth token for:', email);
+        
+        await sendMagicLink(email, token);
+        console.log('[AUTH] Magic link sent successfully to:', email);
 
-      res.json({ 
-        success: true, 
-        message: "인증 링크가 이메일로 발송되었습니다." 
-      });
+        res.json({ 
+          success: true, 
+          message: "인증 링크가 이메일로 발송되었습니다." 
+        });
+      } catch (emailError) {
+        console.error('[AUTH] Error sending magic link:', emailError);
+        throw emailError;
+      }
     } catch (error) {
-      console.error("Error requesting magic link:", error);
-      res.status(500).json({ error: "인증 링크 발송에 실패했습니다." });
+      console.error("[AUTH] Error requesting magic link:", error);
+      const errorMessage = error instanceof Error ? error.message : "인증 링크 발송에 실패했습니다.";
+      res.status(500).json({ 
+        error: "인증 링크 발송에 실패했습니다.",
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      });
     }
   });
 
@@ -100,6 +112,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ success: true });
     });
+  });
+
+  // Test endpoint to verify email sending (development only)
+  app.post("/api/auth/test-email", async (req, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(403).json({ error: "This endpoint is only available in development mode" });
+    }
+
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+      
+      console.log('[TEST] Testing email send to:', email);
+      const token = await createAuthToken(email);
+      console.log('[TEST] Token created, attempting to send email...');
+      
+      await sendMagicLink(email, token);
+      console.log('[TEST] Email sent successfully!');
+
+      res.json({ 
+        success: true, 
+        message: "테스트 이메일이 발송되었습니다. 메일함을 확인하세요.",
+        token: token // Only for testing
+      });
+    } catch (error) {
+      console.error("[TEST] Error sending test email:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ 
+        error: "테스트 이메일 발송 실패",
+        details: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
   });
 
   // Protected routes - all existing routes now require authentication

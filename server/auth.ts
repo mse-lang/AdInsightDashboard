@@ -71,30 +71,44 @@ export const isAdminEmail: RequestHandler = async (req, res, next) => {
 };
 
 export async function sendMagicLink(email: string, token: string): Promise<void> {
-  const { client, fromEmail } = await getUncachableResendClient();
-  
-  const magicLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 'http://localhost:5000'}/verify?token=${token}`;
-  
-  await client.emails.send({
-    from: fromEmail,
-    to: email,
-    subject: '벤처스퀘어 광고 관리 시스템 로그인',
-    html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333; margin-bottom: 20px;">벤처스퀘어 광고 관리 시스템</h2>
-        <p style="color: #666; margin-bottom: 20px;">안녕하세요,</p>
-        <p style="color: #666; margin-bottom: 20px;">아래 버튼을 클릭하여 로그인하세요. 이 링크는 ${TOKEN_EXPIRY_MINUTES}분 동안 유효합니다.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${magicLink}" style="background-color: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">로그인하기</a>
+  try {
+    console.log('[RESEND] Fetching Resend client...');
+    const { client, fromEmail } = await getUncachableResendClient();
+    console.log('[RESEND] Client obtained, from email:', fromEmail);
+    
+    const magicLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 'http://localhost:5000'}/verify?token=${token}`;
+    console.log('[RESEND] Magic link created:', magicLink);
+    
+    console.log('[RESEND] Sending email to:', email);
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: '벤처스퀘어 광고 관리 시스템 로그인',
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; margin-bottom: 20px;">벤처스퀘어 광고 관리 시스템</h2>
+          <p style="color: #666; margin-bottom: 20px;">안녕하세요,</p>
+          <p style="color: #666; margin-bottom: 20px;">아래 버튼을 클릭하여 로그인하세요. 이 링크는 ${TOKEN_EXPIRY_MINUTES}분 동안 유효합니다.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${magicLink}" style="background-color: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">로그인하기</a>
+          </div>
+          <p style="color: #999; font-size: 14px; margin-top: 30px;">이 이메일을 요청하지 않으셨다면 무시하셔도 됩니다.</p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+            링크가 작동하지 않으면 아래 URL을 복사하여 브라우저에 붙여넣으세요:<br/>
+            <span style="color: #666;">${magicLink}</span>
+          </p>
         </div>
-        <p style="color: #999; font-size: 14px; margin-top: 30px;">이 이메일을 요청하지 않으셨다면 무시하셔도 됩니다.</p>
-        <p style="color: #999; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-          링크가 작동하지 않으면 아래 URL을 복사하여 브라우저에 붙여넣으세요:<br/>
-          <span style="color: #666;">${magicLink}</span>
-        </p>
-      </div>
-    `,
-  });
+      `,
+    });
+    console.log('[RESEND] Email sent successfully, result:', result);
+  } catch (error) {
+    console.error('[RESEND] Error sending email:', error);
+    if (error instanceof Error) {
+      console.error('[RESEND] Error message:', error.message);
+      console.error('[RESEND] Error stack:', error.stack);
+    }
+    throw error;
+  }
 }
 
 export async function createAuthToken(email: string): Promise<string> {
