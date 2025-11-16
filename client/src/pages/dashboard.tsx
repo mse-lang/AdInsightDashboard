@@ -10,14 +10,50 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PipelineStatus } from "@shared/schema";
 
+interface DashboardMetrics {
+  newInquiries: {
+    thisYear: number;
+    lastYearMonthlyAvg: number;
+    thisYearMonthlyAvg: number;
+    lastMonth: number;
+  };
+  activeAds: {
+    thisYear: number;
+    lastYearMonthlyAvg: number;
+    thisYearMonthlyAvg: number;
+    lastMonth: number;
+  };
+  revenue: {
+    thisYear: number;
+    lastYearMonthlyAvg: number;
+    thisYearMonthlyAvg: number;
+    lastMonth: number;
+    currentMonth: number;
+  };
+  progress: {
+    thisYear: number;
+    lastYearMonthlyAvg: number;
+    thisYearMonthlyAvg: number;
+    lastMonth: number;
+  };
+}
+
 export default function Dashboard() {
   const [hasNotification, setHasNotification] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Fetch campaign pipeline status counts
   const { data: pipelineCounts, isLoading: isLoadingPipeline } = useQuery<Record<PipelineStatus, number>>({
     queryKey: ["/api/campaigns/pipeline-counts"],
   });
+
+  const { data: metricsData, isLoading: isLoadingMetrics } = useQuery<{
+    success: boolean;
+    metrics: DashboardMetrics;
+  }>({
+    queryKey: ["/api/dashboard/metrics"],
+  });
+
+  const metrics = metricsData?.metrics;
 
   const newInquiryCount = useMemo(() => {
     if (!pipelineCounts) return 0;
@@ -29,13 +65,18 @@ export default function Dashboard() {
   const activeAdsCount = useMemo(() => {
     if (!pipelineCounts) return 0;
     return (pipelineCounts['부킹확정'] || 0) + 
-           (pipelineCounts['집행중'] || 0);
+           (pipelineCounts['집행중'] || 0) + 
+           (pipelineCounts['결과보고'] || 0);
   }, [pipelineCounts]);
 
   const totalProgressCount = useMemo(() => {
     if (!pipelineCounts) return 0;
     return Object.values(pipelineCounts).reduce((sum, count) => sum + count, 0);
   }, [pipelineCounts]);
+
+  const formatCurrency = (amount: number) => {
+    return `₩${amount.toLocaleString()}`;
+  };
 
   const stagesCounts = useMemo(() => {
     if (!pipelineCounts) return [];
@@ -118,28 +159,54 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="신규 문의"
-          value={newInquiryCount}
+          value={isLoadingMetrics ? "-" : newInquiryCount}
           icon={Users}
-          change={{ value: "8.2%", trend: "up" }}
+          tooltip="현재 '문의중', '견적제시', '일정조율중' 상태의 캠페인 수"
+          details={metrics?.newInquiries ? {
+            thisYear: metrics.newInquiries.thisYear,
+            lastYearMonthlyAvg: metrics.newInquiries.lastYearMonthlyAvg,
+            thisYearMonthlyAvg: metrics.newInquiries.thisYearMonthlyAvg,
+            lastMonth: metrics.newInquiries.lastMonth
+          } : undefined}
           onClick={() => setLocation("/campaigns?filter=inquiry")}
         />
         <StatCard 
           title="집행중 광고" 
-          value={activeAdsCount} 
+          value={isLoadingMetrics ? "-" : activeAdsCount} 
           icon={TrendingUp}
+          tooltip="현재 '부킹확정', '집행중', '결과보고' 상태의 캠페인 수"
+          details={metrics?.activeAds ? {
+            thisYear: metrics.activeAds.thisYear,
+            lastYearMonthlyAvg: metrics.activeAds.lastYearMonthlyAvg,
+            thisYearMonthlyAvg: metrics.activeAds.thisYearMonthlyAvg,
+            lastMonth: metrics.activeAds.lastMonth
+          } : undefined}
           onClick={() => setLocation("/campaigns?filter=active")}
         />
         <StatCard
-          title="이번달 매출"
-          value="₩0"
+          title="이번 달 매출"
+          value={isLoadingMetrics || !metrics ? "₩0" : formatCurrency(metrics.revenue.currentMonth)}
           icon={DollarSign}
-          change={{ value: "12.5%", trend: "up" }}
+          tooltip="세금계산서 발행일 기준 이번 달 매출 금액"
+          details={metrics?.revenue ? {
+            thisYear: formatCurrency(metrics.revenue.thisYear),
+            lastYearMonthlyAvg: formatCurrency(metrics.revenue.lastYearMonthlyAvg),
+            thisYearMonthlyAvg: formatCurrency(metrics.revenue.thisYearMonthlyAvg),
+            lastMonth: formatCurrency(metrics.revenue.lastMonth)
+          } : undefined}
           onClick={() => setLocation("/quotes")}
         />
         <StatCard 
           title="진행 건수" 
-          value={totalProgressCount} 
+          value={isLoadingMetrics ? "-" : totalProgressCount} 
           icon={Calendar}
+          tooltip="전체 캠페인 진행 건수"
+          details={metrics?.progress ? {
+            thisYear: metrics.progress.thisYear,
+            lastYearMonthlyAvg: metrics.progress.lastYearMonthlyAvg,
+            thisYearMonthlyAvg: metrics.progress.thisYearMonthlyAvg,
+            lastMonth: metrics.progress.lastMonth
+          } : undefined}
           onClick={() => setLocation("/campaigns")}
         />
       </div>
