@@ -10,10 +10,12 @@ import type { UserRecord } from "./airtable/tables/users";
 import { isAdmin, canEdit, createUser } from "./airtable/tables/users";
 import * as advertisersTable from "./airtable/tables/advertisers";
 import * as communicationLogsTable from "./airtable/tables/communication-logs";
+import * as campaignsTable from "./airtable/tables/campaigns";
 import * as quotesTable from "./airtable/tables/quotes";
 import * as quoteItemsTable from "./airtable/tables/quote-items";
 import * as invoicesTable from "./airtable/tables/invoices";
 import type { AdvertiserRecord } from "./airtable/tables/advertisers";
+import type { CampaignRecord } from "./airtable/tables/campaigns";
 import type { QuoteRecord } from "./airtable/tables/quotes";
 import type { QuoteItemRecord } from "./airtable/tables/quote-items";
 import type { InvoiceRecord } from "./airtable/tables/invoices";
@@ -96,6 +98,22 @@ function transformInvoiceForAPI(record: InvoiceRecord) {
     dueDate: record.fields['Due Date'] || null,
     paymentDate: record.fields['Payment Date'] || null,
     notes: record.fields['Notes'] || '',
+  };
+}
+
+function transformCampaignForAPI(record: CampaignRecord) {
+  return {
+    id: record.id,
+    campaignName: record.fields['Campaign Name'],
+    advertiserId: record.fields['Advertiser']?.[0] || null,
+    adProductIds: record.fields['Ad Products'] || [],
+    startDate: record.fields['Start Date'],
+    endDate: record.fields['End Date'],
+    status: record.fields['Status'],
+    utmCampaign: record.fields['UTM Campaign'] || '',
+    googleCalendarId: record.fields['Google Calendar ID'] || '',
+    creativeIds: record.fields['Creatives'] || [],
+    reportIds: record.fields['Reports'] || [],
   };
 }
 
@@ -505,6 +523,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ error: 'Failed to delete advertiser', details: errorMessage });
+    }
+  });
+
+  // Campaign routes - Airtable-based
+  app.get("/api/campaigns", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const records = await campaignsTable.getAllCampaigns();
+      const campaigns = records.map(transformCampaignForAPI);
+      res.json(campaigns);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch campaigns', details: errorMessage });
+    }
+  });
+
+  app.get("/api/campaigns/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const campaign = await campaignsTable.getCampaignById(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      res.json(transformCampaignForAPI(campaign));
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch campaign', details: errorMessage });
+    }
+  });
+
+  app.get("/api/campaigns/advertiser/:advertiserId", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const campaigns = await campaignsTable.getCampaignsByAdvertiser(req.params.advertiserId);
+      res.json(campaigns.map(transformCampaignForAPI));
+    } catch (error) {
+      console.error('Error fetching campaigns by advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch campaigns', details: errorMessage });
+    }
+  });
+
+  app.get("/api/campaigns/status/:status", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const status = req.params.status as 'Planning' | 'Active' | 'Completed' | 'Cancelled';
+      const campaigns = await campaignsTable.getCampaignsByStatus(status);
+      res.json(campaigns.map(transformCampaignForAPI));
+    } catch (error) {
+      console.error('Error fetching campaigns by status:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch campaigns', details: errorMessage });
+    }
+  });
+
+  app.post("/api/campaigns", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const schema = z.object({
+        campaignName: z.string().min(1),
+        advertiserId: z.string().min(1),
+        startDate: z.string(),
+        endDate: z.string(),
+        status: z.enum(['Planning', 'Active', 'Completed', 'Cancelled']).optional(),
+        adProductIds: z.array(z.string()).optional(),
+        utmCampaign: z.string().optional(),
+      });
+
+      const data = schema.parse(req.body);
+      const campaign = await campaignsTable.createCampaign(data);
+      res.json(transformCampaignForAPI(campaign));
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+
+      res.status(500).json({ error: 'Failed to create campaign', details: errorMessage });
+    }
+  });
+
+  app.patch("/api/campaigns/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const schema = z.object({
+        campaignName: z.string().min(1).optional(),
+        advertiserId: z.string().min(1).optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        status: z.enum(['Planning', 'Active', 'Completed', 'Cancelled']).optional(),
+        adProductIds: z.array(z.string()).optional(),
+        utmCampaign: z.string().optional(),
+      });
+
+      const data = schema.parse(req.body);
+      const campaign = await campaignsTable.updateCampaign(req.params.id, data);
+      res.json(transformCampaignForAPI(campaign));
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+
+      res.status(500).json({ error: 'Failed to update campaign', details: errorMessage });
+    }
+  });
+
+  app.delete("/api/campaigns/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const success = await campaignsTable.deleteCampaign(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: 'Campaign not found or deletion failed' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+
+      res.status(500).json({ error: 'Failed to delete campaign', details: errorMessage });
     }
   });
 

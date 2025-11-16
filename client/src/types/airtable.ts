@@ -54,3 +54,17 @@ export interface AirtableInvoice {
   paymentDate?: string | null;
   notes?: string;
 }
+
+export interface AirtableCampaign {
+  id: string;
+  campaignName: string;
+  advertiserId: string | null;
+  adProductIds: string[];
+  startDate: string;
+  endDate: string;
+  status: 'Planning' | 'Active' | 'Completed' | 'Cancelled';
+  utmCampaign?: string;
+  googleCalendarId?: string;
+  creativeIds: string[];
+  reportIds: string[];
+}
