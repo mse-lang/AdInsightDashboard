@@ -21,6 +21,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **CSV Upload Bug Fixes** ✅
+- ✅ **Fixed Double File Dialog**:
+  - Removed duplicate label wrapper causing double click
+  - File picker now opens only once per click
+- ✅ **Fixed Upload Failure**:
+  - Agency API failure no longer blocks upload
+  - Upload proceeds even when agency mapping unavailable
+  - Graceful degradation with console warnings
+
 **2025-11-16**: **Advertiser CSV Import/Export Enhancement** ✅
 - ✅ **Enhanced CSV Download**:
   - Expanded to 12 fields: 광고주, 사업자번호, 사업자등록번호, 계좌번호, 광고소재, 담당자, 담당자구분, 에이전시, 이메일, 전화번호, 업종, 상태
