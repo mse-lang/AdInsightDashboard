@@ -19,6 +19,47 @@ VS-AMS is a comprehensive advertising management system for Venture Square, desi
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**2025-11-16**: **General Settings - Bank Information** ✅
+- ✅ **Bank Information Fields**:
+  - Added bankName and bankAccountNumber to general settings
+  - Settings stored in Airtable System Settings table (Category: 'General')
+  - Key-value storage pattern: BankName, BankAccountNumber
+- ✅ **Settings API**:
+  - GET /api/settings/general - Fetch general settings
+  - PATCH /api/settings/general - Update settings with authentication guard
+  - Incremental update support (only changed fields are updated)
+- ✅ **Settings UI**:
+  - Bank name input field with placeholder (예: 국민은행)
+  - Bank account number input field with placeholder (예: 123-45-678910)
+  - Save button disabled when no changes or during mutation
+  - Proper loading states and toast notifications
+  - All fields include data-testid attributes
+
+**2025-11-16**: **Advertiser-Agency Relationship System Complete** ✅
+- ✅ **Agencies Management**:
+  - New Agency entity with full CRUD operations
+  - AgencyFields: name, business registration number, contact person, email, phone, status, notes, advertisers (linked field)
+  - Airtable table functions: getAllAgencies, getAgencyById, createAgency, updateAgency, deleteAgency
+  - Complete API routes: GET /api/agencies, GET /api/agencies/:id, POST /api/agencies, PATCH /api/agencies/:id, DELETE /api/agencies/:id
+  - Frontend agencies management page with search, filtering, and CRUD dialogs
+- ✅ **Enhanced Advertiser Fields**:
+  - Added businessRegistrationNumber, bankAccountNumber, adMaterials fields
+  - Added contactPersonType enum ("Advertiser" | "Agency")
+  - Added agency relationship (linked to Agencies table)
+  - Campaign history display (campaign count badge)
+- ✅ **UI Updates**:
+  - Changed "회사명" label to "광고주" throughout advertiser interface
+  - Contact person type badge display (에이전시/광고주)
+  - Agency selection dropdown (appears when contact type is "Agency")
+  - Campaign count display in advertiser list
+  - Comprehensive data-testid coverage on all interactive and display elements
+- ✅ **API Enhancements**:
+  - Updated advertiser CRUD to handle new fields with Zod validation
+  - Proper error handling (400/404/500/503 status codes)
+  - Authentication guards on mutation endpoints
+
 ## System Architecture
 
 ### Frontend Architecture
