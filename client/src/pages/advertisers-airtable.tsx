@@ -430,17 +430,17 @@ export default function AdvertisersAirtable() {
 
           try {
             await apiRequest("POST", "/api/advertisers", {
-              companyName,
-              businessNumber: businessNumber || undefined,
-              businessRegistrationNumber: businessRegistrationNumber || undefined,
-              bankAccountNumber: bankAccountNumber || undefined,
-              adMaterials: adMaterials || undefined,
-              contactPerson,
+              companyName: companyName.trim(),
+              businessNumber: businessNumber.trim() || undefined,
+              businessRegistrationNumber: businessRegistrationNumber.trim() || undefined,
+              bankAccountNumber: bankAccountNumber.trim() || undefined,
+              adMaterials: adMaterials.trim() || undefined,
+              contactPerson: contactPerson.trim(),
               contactPersonType,
-              agencyId,
-              email,
-              phone,
-              industry: industry || undefined,
+              agencyId: agencyId || undefined,
+              email: email.trim(),
+              phone: phone.trim(),
+              industry: industry.trim() || undefined,
               status: statusKey || "Lead",
             });
             successCount++;
