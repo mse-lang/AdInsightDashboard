@@ -4,6 +4,8 @@ import type { AirtableQuote, AirtableAdvertiser } from "@/types/airtable";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -41,6 +43,14 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export default function QuotesAirtable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [selectedQuote, setSelectedQuote] = useState<AirtableQuote | null>(null);
+  const [formData, setFormData] = useState({
+    advertiserId: "",
+    totalAmount: 0,
+    discountRate: 0,
+    status: "Draft" as const,
+  });
   const { toast } = useToast();
 
   const { data: quotes = [], isLoading } = useQuery<AirtableQuote[]>({
@@ -49,6 +59,40 @@ export default function QuotesAirtable() {
 
   const { data: advertisers = [] } = useQuery<AirtableAdvertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof formData) => 
+      apiRequest("/api/quotes", {
+        method: "POST",
+        body: JSON.stringify({
+          advertiserId: data.advertiserId,
+          totalAmount: data.totalAmount,
+          discountRate: data.discountRate / 100,
+          status: data.status,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: "견적서 생성 완료",
+        description: "견적서가 성공적으로 생성되었습니다.",
+      });
+      setFormDialogOpen(false);
+      setFormData({
+        advertiserId: "",
+        totalAmount: 0,
+        discountRate: 0,
+        status: "Draft",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "견적서 생성 실패",
+        description: error.message || "견적서 생성 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -68,6 +112,48 @@ export default function QuotesAirtable() {
       });
     },
   });
+
+  const handleCreateQuote = () => {
+    setSelectedQuote(null);
+    setFormData({
+      advertiserId: "",
+      totalAmount: 0,
+      discountRate: 0,
+      status: "Draft",
+    });
+    setFormDialogOpen(true);
+  };
+
+  const handleSubmitQuote = () => {
+    if (!formData.advertiserId) {
+      toast({
+        title: "입력 오류",
+        description: "광고주를 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(formData.totalAmount) || formData.totalAmount <= 0) {
+      toast({
+        title: "입력 오류",
+        description: "총액은 0보다 큰 값이어야 합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(formData.discountRate) || formData.discountRate < 0 || formData.discountRate > 100) {
+      toast({
+        title: "입력 오류",
+        description: "할인율은 0-100 사이의 숫자여야 합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createMutation.mutate(formData);
+  };
 
   // Filter quotes
   const filteredQuotes = quotes.filter((quote) => {
@@ -196,7 +282,7 @@ export default function QuotesAirtable() {
                   <SelectItem value="Rejected">거절</SelectItem>
                 </SelectContent>
               </Select>
-              <Button data-testid="button-add-quote">
+              <Button onClick={handleCreateQuote} data-testid="button-add-quote">
                 <Plus className="h-4 w-4 mr-2" />
                 견적서 생성
               </Button>
@@ -296,6 +382,117 @@ export default function QuotesAirtable() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
+        <DialogContent data-testid="dialog-quote-form">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedQuote ? "견적서 수정" : "견적서 생성"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="advertiser">광고주</Label>
+              <Select
+                value={formData.advertiserId}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, advertiserId: value })
+                }
+              >
+                <SelectTrigger id="advertiser" data-testid="select-advertiser">
+                  <SelectValue placeholder="광고주를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {advertisers.filter(a => a.status === "Active").map((advertiser) => (
+                    <SelectItem
+                      key={advertiser.id}
+                      value={advertiser.id}
+                      data-testid={`select-item-advertiser-${advertiser.id}`}
+                    >
+                      {advertiser.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="totalAmount">총액 (원)</Label>
+              <Input
+                id="totalAmount"
+                type="number"
+                min="1"
+                step="1000"
+                value={formData.totalAmount || ""}
+                onChange={(e) => {
+                  const value = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                  setFormData({
+                    ...formData,
+                    totalAmount: isNaN(value) ? 0 : value,
+                  });
+                }}
+                placeholder="예: 1000000"
+                data-testid="input-total-amount"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="discountRate">할인율 (%)</Label>
+              <Input
+                id="discountRate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={formData.discountRate || ""}
+                onChange={(e) => {
+                  const value = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                  setFormData({
+                    ...formData,
+                    discountRate: isNaN(value) ? 0 : value,
+                  });
+                }}
+                placeholder="예: 10"
+                data-testid="input-discount-rate"
+              />
+            </div>
+            <div>
+              <Label htmlFor="status">상태</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value: any) =>
+                  setFormData({ ...formData, status: value })
+                }
+              >
+                <SelectTrigger id="status" data-testid="select-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Draft">작성중</SelectItem>
+                  <SelectItem value="Sent">발송</SelectItem>
+                  <SelectItem value="Approved">승인</SelectItem>
+                  <SelectItem value="Rejected">거절</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFormDialogOpen(false)}
+              data-testid="button-cancel-quote"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleSubmitQuote}
+              disabled={createMutation.isPending || !formData.advertiserId || formData.totalAmount <= 0}
+              data-testid="button-submit-quote"
+            >
+              {createMutation.isPending ? "생성 중..." : "생성"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
