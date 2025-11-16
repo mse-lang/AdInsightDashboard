@@ -30,6 +30,7 @@ import * as googleSheetsService from "./services/google-sheets.service";
 import * as taxInvoicesTable from "./airtable/tables/tax-invoices";
 import { getBarobillClient } from "./barobill/client";
 import type { TaxInvoiceData } from "./barobill/types";
+import { getUncachableResendClient } from "./resendClient";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
@@ -1286,6 +1287,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send quote via email
+  app.post("/api/quotes/:id/send-email", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+      
+      const quoteId = req.params.id;
+      const { recipientEmail, message } = req.body;
+      
+      // Fetch quote details
+      const quote = await quotesTable.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      // Fetch advertiser details
+      const advertiserId = quote.fields['Advertiser']?.[0];
+      if (!advertiserId) {
+        return res.status(400).json({ error: 'Quote has no advertiser' });
+      }
+      
+      const advertiser = await advertisersTable.getAdvertiserById(advertiserId);
+      if (!advertiser) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      const email = recipientEmail || advertiser.fields['Email'];
+      if (!email) {
+        return res.status(400).json({ error: 'No email address available' });
+      }
+      
+      // Send email via Resend
+      const { client, fromEmail } = await getUncachableResendClient();
+      const quoteNumber = quote.fields['Quote Number'] || quoteId;
+      const totalAmount = quote.fields['Total Amount'] || 0;
+      const finalAmount = quote.fields['Final Amount'] || totalAmount;
+      
+      await client.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: `[벤처스퀘어] 견적서 #${quoteNumber}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333; margin-bottom: 20px;">견적서</h2>
+            <p style="color: #666; margin-bottom: 20px;">안녕하세요, ${advertiser.fields['Company Name']}님</p>
+            ${message ? `<p style="color: #666; margin-bottom: 20px;">${message}</p>` : ''}
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 10px 0;"><strong>견적서 번호:</strong> #${quoteNumber}</p>
+              <p style="margin: 10px 0;"><strong>최종 금액:</strong> ${finalAmount.toLocaleString('ko-KR')}원</p>
+            </div>
+            <p style="color: #999; font-size: 14px; margin-top: 30px;">문의사항이 있으시면 언제든지 연락주세요.</p>
+          </div>
+        `,
+      });
+      
+      // Update quote status to Sent
+      await quotesTable.sendQuote(quoteId);
+      
+      // Log communication
+      await communicationLogsTable.createCommunicationLog({
+        advertiserId,
+        type: 'Email',
+        subject: `견적서 #${quoteNumber}`,
+        content: message || `견적서가 이메일로 발송되었습니다.`,
+        status: 'Sent',
+      });
+      
+      res.json({ success: true, message: '견적서가 이메일로 발송되었습니다.' });
+    } catch (error) {
+      console.error('Error sending quote via email:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send quote via email', details: errorMessage });
+    }
+  });
+  
+  // Send quote via SMS
+  app.post("/api/quotes/:id/send-sms", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+      
+      const quoteId = req.params.id;
+      const { recipientPhone, message } = req.body;
+      
+      // Fetch quote details
+      const quote = await quotesTable.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      // Fetch advertiser details
+      const advertiserId = quote.fields['Advertiser']?.[0];
+      if (!advertiserId) {
+        return res.status(400).json({ error: 'Quote has no advertiser' });
+      }
+      
+      const advertiser = await advertisersTable.getAdvertiserById(advertiserId);
+      if (!advertiser) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      const phone = recipientPhone || advertiser.fields['Phone'];
+      if (!phone) {
+        return res.status(400).json({ error: 'No phone number available' });
+      }
+      
+      // Send SMS via Solapi
+      const quoteNumber = quote.fields['Quote Number'] || quoteId;
+      const finalAmount = quote.fields['Final Amount'] || quote.fields['Total Amount'] || 0;
+      
+      const smsText = message || `[벤처스퀘어] 견적서 #${quoteNumber}이(가) 발송되었습니다. 최종 금액: ${finalAmount.toLocaleString('ko-KR')}원`;
+      
+      await solapiService.sendSMS({
+        to: phone,
+        text: smsText,
+      });
+      
+      // Update quote status to Sent
+      await quotesTable.sendQuote(quoteId);
+      
+      // Log communication
+      await communicationLogsTable.createCommunicationLog({
+        advertiserId,
+        type: 'SMS',
+        content: smsText,
+        status: 'Sent',
+      });
+      
+      res.json({ success: true, message: '견적서가 SMS로 발송되었습니다.' });
+    } catch (error) {
+      console.error('Error sending quote via SMS:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send quote via SMS', details: errorMessage });
+    }
+  });
+  
+  // Send quote via KakaoTalk
+  app.post("/api/quotes/:id/send-kakao", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+      
+      const quoteId = req.params.id;
+      const { recipientPhone, message } = req.body;
+      
+      // Fetch quote details
+      const quote = await quotesTable.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      // Fetch advertiser details
+      const advertiserId = quote.fields['Advertiser']?.[0];
+      if (!advertiserId) {
+        return res.status(400).json({ error: 'Quote has no advertiser' });
+      }
+      
+      const advertiser = await advertisersTable.getAdvertiserById(advertiserId);
+      if (!advertiser) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      const phone = recipientPhone || advertiser.fields['Phone'];
+      if (!phone) {
+        return res.status(400).json({ error: 'No phone number available' });
+      }
+      
+      // Send KakaoTalk via Solapi (using SMS fallback)
+      const quoteNumber = quote.fields['Quote Number'] || quoteId;
+      const finalAmount = quote.fields['Final Amount'] || quote.fields['Total Amount'] || 0;
+      
+      const kakaoText = message || `[벤처스퀘어] 견적서 #${quoteNumber}이(가) 발송되었습니다. 최종 금액: ${finalAmount.toLocaleString('ko-KR')}원`;
+      
+      // Note: For actual KakaoTalk Alimtalk, you need templateId and pfId
+      // For now, using SMS as fallback
+      await solapiService.sendSMS({
+        to: phone,
+        text: kakaoText,
+      });
+      
+      // Update quote status to Sent
+      await quotesTable.sendQuote(quoteId);
+      
+      // Log communication
+      await communicationLogsTable.createCommunicationLog({
+        advertiserId,
+        type: 'KakaoTalk',
+        content: kakaoText,
+        status: 'Sent',
+      });
+      
+      res.json({ success: true, message: '견적서가 카카오톡으로 발송되었습니다.' });
+    } catch (error) {
+      console.error('Error sending quote via KakaoTalk:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send quote via KakaoTalk', details: errorMessage });
+    }
+  });
+
   app.post("/api/quotes/:id/approve", requireAuth, async (req, res) => {
     try {
       if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
@@ -1503,6 +1706,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ error: 'Failed to delete quote item', details: errorMessage });
+    }
+  });
+
+  // Quote sending routes
+  app.post("/api/quotes/:id/send-email", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().trim().email("Valid email address is required"),
+        message: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const quoteId = req.params.id;
+      
+      // Get quote from Airtable
+      const quote = await quotesTable.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      // Get advertiser from Airtable
+      const advertiserIds = quote.fields['Advertiser'];
+      if (!advertiserIds || advertiserIds.length === 0) {
+        return res.status(400).json({ error: 'Quote has no advertiser' });
+      }
+      
+      const advertiser = await advertisersTable.getAdvertiserById(advertiserIds[0]);
+      if (!advertiser) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      // Send email via Resend
+      const { client, fromEmail } = await getUncachableResendClient();
+      
+      const quoteNumber = quote.fields['Quote Number'] || 'N/A';
+      const finalAmount = quote.fields['Final Amount'] || 0;
+      const advertiserName = advertiser.fields['Name'] || '고객님';
+      const customMessage = data.message ? `\n\n${data.message}\n\n` : '';
+      
+      await client.emails.send({
+        from: fromEmail,
+        to: data.email,
+        subject: `[벤처스퀘어] 견적서 발송 - ${quoteNumber}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333;">견적서 발송</h2>
+            <p style="color: #666;">안녕하세요, ${advertiserName}님</p>
+            <p style="color: #666;">요청하신 광고 견적서를 보내드립니다.</p>
+            ${customMessage ? `<p style="color: #666; white-space: pre-wrap;">${customMessage}</p>` : ''}
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 5px 0;"><strong>견적번호:</strong> ${quoteNumber}</p>
+              <p style="margin: 5px 0;"><strong>견적금액:</strong> ${finalAmount.toLocaleString()}원</p>
+            </div>
+            <p style="color: #666;">궁금하신 사항이 있으시면 언제든지 연락 주시기 바랍니다.</p>
+            <p style="color: #999; font-size: 14px; margin-top: 30px;">
+              이 이메일은 벤처스퀘어 광고 관리 시스템에서 발송되었습니다.
+            </p>
+          </div>
+        `,
+      });
+      
+      // Update quote status to Sent
+      await quotesTable.updateQuote(quoteId, { status: 'Sent' });
+      
+      // Log to communication logs
+      await communicationLogsTable.createCommunicationLog({
+        advertiserId: advertiserIds[0],
+        type: 'Email',
+        subject: `[벤처스퀘어] 견적서 발송 - ${quoteNumber}`,
+        content: `견적서 이메일 발송 (견적번호: ${quoteNumber}, 금액: ${finalAmount.toLocaleString()}원)${data.message ? `\n\n추가 메시지:\n${data.message}` : ''}`,
+        status: 'Sent',
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error sending quote email:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send quote email', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quotes/:id/send-sms", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        phone: z.string().trim().min(1, "Phone number is required"),
+        message: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const quoteId = req.params.id;
+      
+      // Get quote from Airtable
+      const quote = await quotesTable.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      // Get advertiser from Airtable
+      const advertiserIds = quote.fields['Advertiser'];
+      if (!advertiserIds || advertiserIds.length === 0) {
+        return res.status(400).json({ error: 'Quote has no advertiser' });
+      }
+      
+      const advertiser = await advertisersTable.getAdvertiserById(advertiserIds[0]);
+      if (!advertiser) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      // Send SMS via Solapi
+      const quoteNumber = quote.fields['Quote Number'] || 'N/A';
+      const finalAmount = quote.fields['Final Amount'] || 0;
+      const advertiserName = advertiser.fields['Name'] || '고객님';
+      const customMessage = data.message ? `\n\n${data.message}` : '';
+      
+      const smsText = `[벤처스퀘어] 안녕하세요, ${advertiserName}님. 요청하신 광고 견적서를 보내드립니다.\n\n견적번호: ${quoteNumber}\n견적금액: ${finalAmount.toLocaleString()}원${customMessage}`;
+      
+      const result = await solapiService.sendSMS({
+        to: data.phone,
+        text: smsText,
+      });
+      
+      // Update quote status to Sent
+      await quotesTable.updateQuote(quoteId, { status: 'Sent' });
+      
+      // Log to communication logs
+      await communicationLogsTable.createCommunicationLog({
+        advertiserId: advertiserIds[0],
+        type: 'SMS',
+        content: smsText,
+        status: 'Sent',
+        externalId: result.groupId || result.messageId,
+      });
+      
+      res.json({ success: true, result });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      if (error instanceof SolapiServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      console.error('Error sending quote SMS:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send quote SMS', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quotes/:id/send-kakao", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        phone: z.string().trim().min(1, "Phone number is required"),
+        message: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const quoteId = req.params.id;
+      
+      // Get quote from Airtable
+      const quote = await quotesTable.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      // Get advertiser from Airtable
+      const advertiserIds = quote.fields['Advertiser'];
+      if (!advertiserIds || advertiserIds.length === 0) {
+        return res.status(400).json({ error: 'Quote has no advertiser' });
+      }
+      
+      const advertiser = await advertisersTable.getAdvertiserById(advertiserIds[0]);
+      if (!advertiser) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      // For now, send as SMS (KakaoTalk requires template setup)
+      const quoteNumber = quote.fields['Quote Number'] || 'N/A';
+      const finalAmount = quote.fields['Final Amount'] || 0;
+      const advertiserName = advertiser.fields['Name'] || '고객님';
+      const customMessage = data.message ? `\n\n${data.message}` : '';
+      
+      const messageText = `[벤처스퀘어] 안녕하세요, ${advertiserName}님. 요청하신 광고 견적서를 보내드립니다.\n\n견적번호: ${quoteNumber}\n견적금액: ${finalAmount.toLocaleString()}원${customMessage}`;
+      
+      const result = await solapiService.sendSMS({
+        to: data.phone,
+        text: messageText,
+      });
+      
+      // Update quote status to Sent
+      await quotesTable.updateQuote(quoteId, { status: 'Sent' });
+      
+      // Log to communication logs (log as KakaoTalk even though sent as SMS)
+      await communicationLogsTable.createCommunicationLog({
+        advertiserId: advertiserIds[0],
+        type: 'KakaoTalk',
+        content: messageText,
+        status: 'Sent',
+        externalId: result.groupId || result.messageId,
+      });
+      
+      res.json({ success: true, result });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      if (error instanceof SolapiServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      console.error('Error sending quote via KakaoTalk:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send quote via KakaoTalk', details: errorMessage });
     }
   });
 
@@ -2490,6 +2906,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { metric: "이탈률", value: "42.3%", change: "-3.1%", trend: "up" },
         ]
       });
+    }
+  });
+
+  // Email sending route (for general email sending)
+  app.post("/api/send-email", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        to: z.string().trim().email("Valid email address is required"),
+        subject: z.string().trim().min(1, "Subject is required"),
+        message: z.string().trim().min(1, "Message is required"),
+        advertiserId: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Send email via Resend
+      const { client, fromEmail } = await getUncachableResendClient();
+      
+      await client.emails.send({
+        from: fromEmail,
+        to: data.to,
+        subject: data.subject,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <p style="color: #666; white-space: pre-wrap;">${data.message}</p>
+            <p style="color: #999; font-size: 14px; margin-top: 30px;">
+              이 이메일은 벤처스퀘어 광고 관리 시스템에서 발송되었습니다.
+            </p>
+          </div>
+        `,
+      });
+      
+      // Log to Airtable if advertiserId provided
+      if (data.advertiserId && process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID) {
+        try {
+          await communicationLogsTable.createCommunicationLog({
+            advertiserId: data.advertiserId,
+            type: 'Email',
+            subject: data.subject,
+            content: data.message,
+            status: 'Sent',
+          });
+        } catch (logError) {
+          console.warn('Failed to log email to Airtable:', logError);
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error sending email:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send email', details: errorMessage });
     }
   });
 

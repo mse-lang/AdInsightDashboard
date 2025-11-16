@@ -28,9 +28,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, Filter, FileText, CheckCircle, Clock, XCircle, Plus, Edit, Trash2 } from "lucide-react";
+import { Eye, Search, Filter, FileText, CheckCircle, Clock, XCircle, Plus, Edit, Trash2, Send } from "lucide-react";
 import { format } from "date-fns";
 import { QuoteFormDialog } from "./quotes-create";
+import { SendQuoteDialog } from "@/components/send-quote-dialog";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   Draft: { label: "작성중", variant: "secondary" },
@@ -43,10 +44,16 @@ export default function QuotesAirtable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [selectedQuote, setSelectedQuote] = useState<AirtableQuote | null>(null);
   const { toast } = useToast();
 
   const { data: quotes = [], isLoading } = useQuery<AirtableQuote[]>({
     queryKey: ["/api/quotes"],
+  });
+
+  const { data: advertisers = [] } = useQuery<AirtableAdvertiser[]>({
+    queryKey: ["/api/advertisers"],
   });
 
   const deleteMutation = useMutation({
@@ -93,6 +100,16 @@ export default function QuotesAirtable() {
     } catch {
       return "-";
     }
+  };
+
+  const handleSendClick = (quote: AirtableQuote) => {
+    setSelectedQuote(quote);
+    setSendDialogOpen(true);
+  };
+
+  const getAdvertiser = (advertiserId?: string | null) => {
+    if (!advertiserId) return null;
+    return advertisers.find(a => a.id === advertiserId);
   };
 
   return (
@@ -265,6 +282,14 @@ export default function QuotesAirtable() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleSendClick(quote)}
+                            data-testid={`button-send-${quote.id}`}
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             data-testid={`button-view-${quote.id}`}
                           >
                             <Eye className="h-4 w-4" />
@@ -300,6 +325,17 @@ export default function QuotesAirtable() {
         onOpenChange={setFormDialogOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/quotes"] })}
       />
+
+      {selectedQuote && (
+        <SendQuoteDialog
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          quoteId={selectedQuote.id}
+          advertiserEmail={getAdvertiser(selectedQuote.advertiserId)?.email}
+          advertiserPhone={getAdvertiser(selectedQuote.advertiserId)?.phone}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/quotes"] })}
+        />
+      )}
     </div>
   );
 }

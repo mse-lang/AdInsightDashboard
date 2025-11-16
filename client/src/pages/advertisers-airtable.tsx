@@ -52,13 +52,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, Filter, Users, Building2, TrendingUp, Plus, Edit, Trash2, Upload, Download } from "lucide-react";
+import { Eye, Search, Filter, Users, Building2, TrendingUp, Plus, Edit, Trash2, Upload, Download, Mail, Phone, MessageSquare } from "lucide-react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ContactAdvertiserDialog } from "@/components/contact-advertiser-dialog";
 
 const statusColors = {
   Lead: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
@@ -98,6 +99,8 @@ export default function AdvertisersAirtable() {
   const [editingAdvertiser, setEditingAdvertiser] = useState<AirtableAdvertiser | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [advertiserToDelete, setAdvertiserToDelete] = useState<AirtableAdvertiser | null>(null);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [selectedAdvertiser, setSelectedAdvertiser] = useState<AirtableAdvertiser | null>(null);
   const { toast } = useToast();
 
   const { data: advertisers = [], isLoading } = useQuery<AirtableAdvertiser[]>({
@@ -244,6 +247,11 @@ export default function AdvertisersAirtable() {
     if (advertiserToDelete) {
       deleteMutation.mutate(advertiserToDelete.id);
     }
+  };
+
+  const handleContactClick = (advertiser: AirtableAdvertiser) => {
+    setSelectedAdvertiser(advertiser);
+    setContactDialogOpen(true);
   };
 
   const handleDownloadCSV = () => {
@@ -784,8 +792,43 @@ export default function AdvertisersAirtable() {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm" data-testid={`text-email-${advertiser.id}`}>{advertiser.email}</TableCell>
-                      <TableCell data-testid={`text-phone-${advertiser.id}`}>{advertiser.phone}</TableCell>
+                      <TableCell className="text-sm" data-testid={`text-email-${advertiser.id}`}>
+                        <div className="flex items-center gap-2">
+                          <span>{advertiser.email}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleContactClick(advertiser)}
+                            data-testid={`button-email-${advertiser.id}`}
+                          >
+                            <Mail className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`text-phone-${advertiser.id}`}>
+                        <div className="flex items-center gap-2">
+                          <span>{advertiser.phone}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleContactClick(advertiser)}
+                            data-testid={`button-phone-${advertiser.id}`}
+                          >
+                            <Phone className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleContactClick(advertiser)}
+                            data-testid={`button-kakao-${advertiser.id}`}
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {advertiser.campaigns && advertiser.campaigns.length > 0 ? (
                           <Badge 
@@ -1102,6 +1145,19 @@ export default function AdvertisersAirtable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Contact Advertiser Dialog */}
+      {selectedAdvertiser && (
+        <ContactAdvertiserDialog
+          open={contactDialogOpen}
+          onOpenChange={setContactDialogOpen}
+          advertiserId={selectedAdvertiser.id}
+          advertiserName={selectedAdvertiser.companyName}
+          advertiserEmail={selectedAdvertiser.email}
+          advertiserPhone={selectedAdvertiser.phone}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/communication-logs"] })}
+        />
+      )}
     </div>
   );
 }
