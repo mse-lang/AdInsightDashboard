@@ -21,6 +21,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Survey Response Navigation** ✅
+- ✅ **Google Sheets Integration Fix**:
+  - Fixed Google Sheets API range parsing error by adding single quotes around sheet name
+  - Changed range from `설문지 응답 1!A:Z` to `'설문지 응답 1'!A:Z`
+  - This resolves the "Unable to parse range" error
+- ✅ **Survey Response Button**:
+  - Added "Google Sheets에서 보기" button to each survey response card
+  - Button opens the source Google Sheet in a new tab
+  - Consistent with "Gmail에서 보기" pattern for email inquiries
+  - Sheet ID: 1UQnH5bGhmZIkQ_-WJil-vsibpjq0pmbophowGjLqhCE
+
 **2025-11-16**: **Pipeline Status System - Dashboard Campaign Metrics** ✅
 - ✅ **8-Stage Pipeline Status**:
   - Implemented comprehensive pipeline status system: 문의중, 견적제시, 일정조율중, 부킹확정, 집행중, 결과보고, 세금계산서 발행 및 대금 청구, 매출 입금

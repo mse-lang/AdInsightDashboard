@@ -299,6 +299,23 @@ export default function Inquiries() {
                       </p>
                     </div>
                   )}
+
+                  <div className="pt-3 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        window.open(
+                          `https://docs.google.com/spreadsheets/d/1UQnH5bGhmZIkQ_-WJil-vsibpjq0pmbophowGjLqhCE/edit#gid=0`,
+                          "_blank"
+                        )
+                      }
+                      data-testid={`button-view-survey-${index}`}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-2" />
+                      Google Sheets에서 보기
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))

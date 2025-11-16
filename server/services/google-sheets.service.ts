@@ -65,7 +65,7 @@ export async function getSurveyResponses(limit: number = 10): Promise<SurveyResp
     const sheets = await getUncachableGoogleSheetClient();
     
     const spreadsheetId = '1UQnH5bGhmZIkQ_-WJil-vsibpjq0pmbophowGjLqhCE';
-    const range = '설문지 응답 1!A:Z';
+    const range = `'설문지 응답 1'!A:Z`;
     
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
