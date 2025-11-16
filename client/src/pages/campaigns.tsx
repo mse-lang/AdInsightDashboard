@@ -52,7 +52,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Briefcase, Search, Filter, Plus, Edit, Trash2, Target, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Briefcase, Search, Filter, Plus, Edit, Trash2, Target, TrendingUp, CheckCircle2, Eye, Calendar as CalendarIcon, ExternalLink } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -92,6 +92,8 @@ export default function Campaigns() {
   const [editingCampaign, setEditingCampaign] = useState<AirtableCampaign | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<AirtableCampaign | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: campaigns = [], isLoading } = useQuery<AirtableCampaign[]>({
@@ -177,6 +179,33 @@ export default function Campaigns() {
     },
   });
 
+  const { data: campaignDetails, isLoading: detailsLoading } = useQuery({
+    queryKey: ["/api/campaigns", selectedCampaignId, "details"],
+    enabled: !!selectedCampaignId && detailsDialogOpen,
+  });
+
+  const addToCalendarMutation = useMutation({
+    mutationFn: (id: string) => 
+      apiRequest("POST", `/api/campaigns/${id}/add-to-calendar`, {}),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({
+        title: "캘린더 등록 완료",
+        description: "캠페인이 Google Calendar에 등록되었습니다.",
+      });
+      if (data.calendarEvent?.htmlLink) {
+        window.open(data.calendarEvent.htmlLink, '_blank');
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "캘린더 등록 실패",
+        description: error.message || "캘린더 등록 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddClick = () => {
     setEditingCampaign(null);
     form.reset({
@@ -220,6 +249,15 @@ export default function Campaigns() {
     if (campaignToDelete) {
       deleteMutation.mutate(campaignToDelete.id);
     }
+  };
+
+  const handleViewDetails = (campaignId: string) => {
+    setSelectedCampaignId(campaignId);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleAddToCalendar = (campaignId: string) => {
+    addToCalendarMutation.mutate(campaignId);
   };
 
   const getAdvertiserName = (advertiserId: string | null) => {
@@ -421,6 +459,23 @@ export default function Campaigns() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleViewDetails(campaign.id)}
+                            data-testid={`button-details-${campaign.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddToCalendar(campaign.id)}
+                            disabled={!!campaign.googleCalendarId || addToCalendarMutation.isPending}
+                            data-testid={`button-calendar-${campaign.id}`}
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEditClick(campaign)}
                             data-testid={`button-edit-${campaign.id}`}
                           >
@@ -611,6 +666,173 @@ export default function Campaigns() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Campaign Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>캠페인 종합 정보</DialogTitle>
+            <DialogDescription>
+              캠페인의 상세 정보를 확인합니다
+            </DialogDescription>
+          </DialogHeader>
+          {detailsLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : campaignDetails ? (
+            <div className="space-y-6">
+              {/* Comprehensive Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">캘린더 등록용 종합 정보</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <pre className="whitespace-pre-wrap text-sm p-4 bg-muted rounded-md font-mono">
+                    {campaignDetails.comprehensiveInfo}
+                  </pre>
+                </CardContent>
+              </Card>
+
+              {/* Basic Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">기본 정보</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">캠페인명</p>
+                      <p className="font-medium">{campaignDetails.campaign.campaignName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">상태</p>
+                      <Badge className={statusColors[campaignDetails.campaign.status]}>
+                        {statusLabels[campaignDetails.campaign.status]}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">시작일</p>
+                      <p className="font-medium">{formatDate(campaignDetails.campaign.startDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">종료일</p>
+                      <p className="font-medium">{formatDate(campaignDetails.campaign.endDate)}</p>
+                    </div>
+                    {campaignDetails.campaign.utmCampaign && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-muted-foreground">UTM Campaign</p>
+                        <p className="font-medium">{campaignDetails.campaign.utmCampaign}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Advertiser Info */}
+              {campaignDetails.advertiser && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">광고주 정보</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">회사명</p>
+                        <p className="font-medium">{campaignDetails.advertiser.companyName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">담당자</p>
+                        <p className="font-medium">{campaignDetails.advertiser.contactPerson || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">이메일</p>
+                        <p className="font-medium">{campaignDetails.advertiser.email || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">전화</p>
+                        <p className="font-medium">{campaignDetails.advertiser.phone || '-'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Ad Products */}
+              {campaignDetails.adProducts && campaignDetails.adProducts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">광고 상품</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {campaignDetails.adProducts.map((product: any, index: number) => (
+                        <div key={product.id} className="p-3 bg-muted rounded-md">
+                          <p className="font-medium">{index + 1}. {product.productName}</p>
+                          {product.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+                          )}
+                          <div className="flex gap-4 mt-2 text-sm">
+                            {product.format && <span className="text-muted-foreground">형식: {product.format}</span>}
+                            {product.unitPrice && <span className="text-muted-foreground">단가: {product.unitPrice.toLocaleString()}원</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Calendar Link */}
+              {campaignDetails.campaign.googleCalendarId && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Google Calendar</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        이 캠페인은 이미 Google Calendar에 등록되어 있습니다
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>캠페인 정보를 불러올 수 없습니다</p>
+            </div>
+          )}
+          <DialogFooter>
+            {campaignDetails && !campaignDetails.campaign.googleCalendarId && (
+              <Button
+                onClick={() => {
+                  if (selectedCampaignId) {
+                    handleAddToCalendar(selectedCampaignId);
+                    setDetailsDialogOpen(false);
+                  }
+                }}
+                disabled={addToCalendarMutation.isPending}
+                data-testid="button-add-to-calendar-dialog"
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                캘린더에 등록
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setDetailsDialogOpen(false)}
+              data-testid="button-close-details"
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
