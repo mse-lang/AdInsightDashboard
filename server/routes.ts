@@ -8,6 +8,9 @@ import jwt from "jsonwebtoken";
 import { passport, GOOGLE_AUTH_ENABLED } from "./auth-google";
 import type { UserRecord } from "./airtable/tables/users";
 import { isAdmin, canEdit, createUser } from "./airtable/tables/users";
+import * as advertisersTable from "./airtable/tables/advertisers";
+import * as communicationLogsTable from "./airtable/tables/communication-logs";
+import type { AdvertiserRecord } from "./airtable/tables/advertisers";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
@@ -31,6 +34,20 @@ const requireAdmin = (req: any, res: any, next: any) => {
   }
   next();
 };
+
+function transformAdvertiserForAPI(record: AdvertiserRecord) {
+  return {
+    id: record.id,
+    companyName: record.fields['Company Name'],
+    businessNumber: record.fields['Business Number'] || '',
+    contactPerson: record.fields['Contact Person'],
+    email: record.fields['Email'],
+    phone: record.fields['Phone'],
+    industry: record.fields['Industry'] || '',
+    status: record.fields['Status'],
+    accountManager: record.fields['Account Manager']?.[0] || null,
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Google OAuth 인증 활성화
@@ -265,55 +282,268 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   */
 
-  // Public routes - 인증 없이 모든 라우트 접근 가능
+  // Advertiser routes - Airtable-based
   app.get("/api/advertisers", async (req, res) => {
-    const advertisers = await storage.getAdvertisers();
-    res.json(advertisers);
+    try {
+      // Check if Airtable is configured
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const records = await advertisersTable.getAllAdvertisers();
+      const advertisers = records.map(transformAdvertiserForAPI);
+      res.json(advertisers);
+    } catch (error) {
+      console.error('Error fetching advertisers:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch advertisers', details: errorMessage });
+    }
   });
 
   app.get("/api/advertisers/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    const advertiser = await storage.getAdvertiserById(id);
-    
-    if (!advertiser) {
-      return res.status(404).json({ error: "Advertiser not found" });
-    }
-    
-    res.json(advertiser);
-  });
-
-  app.post("/api/advertisers", async (req, res) => {
     try {
-      const data = insertAdvertiserSchema.parse(req.body);
-      const advertiser = await storage.createAdvertiser(data);
-      res.json(advertiser);
+      // Check if Airtable is configured
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await advertisersTable.getAdvertiserById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Advertiser not found" });
+      }
+      
+      res.json(transformAdvertiserForAPI(record));
     } catch (error) {
-      res.status(400).json({ error: "Invalid data" });
+      console.error('Error fetching advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch advertiser', details: errorMessage });
     }
   });
 
-  app.patch("/api/advertisers/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    const advertiser = await storage.updateAdvertiser(id, req.body);
-    
-    if (!advertiser) {
-      return res.status(404).json({ error: "Advertiser not found" });
+  app.post("/api/advertisers", requireAuth, async (req, res) => {
+    try {
+      // Check if Airtable is configured
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        companyName: z.string().trim().min(1, "Company name is required"),
+        contactPerson: z.string().trim().min(1, "Contact person is required"),
+        email: z.string().trim().email("Valid email is required"),
+        phone: z.string().trim().min(1, "Phone is required"),
+        businessNumber: z.string().trim().optional(),
+        industry: z.string().trim().optional(),
+        status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      if (!data.companyName || !data.contactPerson || !data.email || !data.phone) {
+        return res.status(400).json({ error: 'Required fields cannot be empty' });
+      }
+      
+      const record = await advertisersTable.createAdvertiser({
+        companyName: data.companyName,
+        contactPerson: data.contactPerson,
+        email: data.email,
+        phone: data.phone,
+        businessNumber: data.businessNumber,
+        industry: data.industry,
+        status: data.status || 'Lead',
+      });
+      
+      if (!record) {
+        return res.status(500).json({ error: 'Failed to create advertiser in Airtable' });
+      }
+      
+      res.json(transformAdvertiserForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error creating advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to create advertiser', details: errorMessage });
     }
-    
-    res.json(advertiser);
   });
 
-  app.delete("/api/advertisers/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    const deleted = await storage.deleteAdvertiser(id);
-    
-    if (!deleted) {
-      return res.status(404).json({ error: "Advertiser not found" });
+  app.patch("/api/advertisers/:id", requireAuth, async (req, res) => {
+    try {
+      // Check if Airtable is configured
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        companyName: z.string().trim().min(1).optional(),
+        contactPerson: z.string().trim().min(1).optional(),
+        email: z.string().trim().email().optional(),
+        phone: z.string().trim().min(1).optional(),
+        businessNumber: z.string().trim().optional(),
+        industry: z.string().trim().optional(),
+        status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await advertisersTable.updateAdvertiser(recordId, {
+        companyName: data.companyName,
+        contactPerson: data.contactPerson,
+        email: data.email,
+        phone: data.phone,
+        businessNumber: data.businessNumber,
+        industry: data.industry,
+        status: data.status,
+      });
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      
+      res.json(transformAdvertiserForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      
+      console.error('Error updating advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Map helper errors to proper HTTP status codes
+      if (errorMessage.includes('not found') || errorMessage.includes('update failed')) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      if (errorMessage.includes('No fields to update')) {
+        return res.status(400).json({ error: 'No fields provided for update' });
+      }
+      
+      res.status(500).json({ error: 'Failed to update advertiser', details: errorMessage });
     }
-    
-    res.json({ success: true });
   });
 
+  app.delete("/api/advertisers/:id", requireAuth, async (req, res) => {
+    try {
+      const recordId = req.params.id;
+      
+      if (!recordId) {
+        return res.status(400).json({ error: 'Advertiser ID is required' });
+      }
+      
+      const success = await advertisersTable.deleteAdvertiser(recordId);
+      
+      if (!success) {
+        return res.status(404).json({ error: 'Advertiser not found or deletion failed' });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Advertiser not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      
+      res.status(500).json({ error: 'Failed to delete advertiser', details: errorMessage });
+    }
+  });
+
+  // Communication Logs routes - Airtable-based
+  app.get("/api/advertisers/:id/communication-logs", async (req, res) => {
+    try {
+      // Check if Airtable is configured
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const advertiserId = req.params.id;
+      const logs = await communicationLogsTable.getCommunicationLogsByAdvertiser(advertiserId);
+      
+      const transformed = logs.map((log) => ({
+        id: log.id,
+        type: log.fields['Type'],
+        subject: log.fields['Subject'] || '',
+        content: log.fields['Content'],
+        status: log.fields['Status'],
+        sentAt: log.fields['Sent At'],
+        externalId: log.fields['External ID'] || '',
+      }));
+      
+      res.json(transformed);
+    } catch (error) {
+      console.error('Error fetching communication logs:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch communication logs', details: errorMessage });
+    }
+  });
+
+  app.post("/api/communication-logs", requireAuth, async (req, res) => {
+    try {
+      // Check if Airtable is configured
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        advertiserId: z.string().trim().min(1, "Advertiser ID is required"),
+        type: z.enum(['Email', 'SMS', 'KakaoTalk', 'Inbound Email']),
+        subject: z.string().trim().optional(),
+        content: z.string().trim().min(1, "Content is required"),
+        status: z.enum(['Sent', 'Failed', 'Delivered', 'Read']).optional(),
+        externalId: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      if (!data.advertiserId || !data.content) {
+        return res.status(400).json({ error: 'Required fields cannot be empty' });
+      }
+      
+      const log = await communicationLogsTable.createCommunicationLog({
+        advertiserId: data.advertiserId,
+        type: data.type,
+        subject: data.subject,
+        content: data.content,
+        status: data.status || 'Sent',
+        externalId: data.externalId,
+      });
+      
+      if (!log) {
+        return res.status(500).json({ error: 'Failed to create communication log in Airtable' });
+      }
+      
+      const transformed = {
+        id: log.id,
+        type: log.fields['Type'],
+        subject: log.fields['Subject'] || '',
+        content: log.fields['Content'],
+        status: log.fields['Status'],
+        sentAt: log.fields['Sent At'],
+        externalId: log.fields['External ID'] || '',
+      };
+      
+      res.json(transformed);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error creating communication log:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to create communication log', details: errorMessage });
+    }
+  });
+
+  // Legacy memo routes (keeping for backwards compatibility)
   app.get("/api/advertisers/:id/memos", async (req, res) => {
     const advertiserId = parseInt(req.params.id);
     const memos = await storage.getMemosByAdvertiserId(advertiserId);

@@ -121,6 +121,10 @@ export async function updateAdvertiser(
     throw new Error('Cannot update advertiser: Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID.');
   }
 
+  if (!recordId) {
+    throw new Error('Advertiser ID is required');
+  }
+
   try {
     const fields: Partial<AdvertiserFields> = {};
 
@@ -133,7 +137,16 @@ export async function updateAdvertiser(
     if (data.accountManagerId) fields['Account Manager'] = [data.accountManagerId];
     if (data.status) fields['Status'] = data.status;
 
+    if (Object.keys(fields).length === 0) {
+      throw new Error('No fields to update');
+    }
+
     const record = await base(TABLES.ADVERTISERS).update(recordId, fields);
+    
+    if (!record) {
+      throw new Error('Advertiser not found or update failed');
+    }
+    
     return record as unknown as AdvertiserRecord;
   } catch (error) {
     console.error('Error updating advertiser:', error);
@@ -142,15 +155,25 @@ export async function updateAdvertiser(
 }
 
 // Delete advertiser (soft delete by setting status to Inactive)
-export async function deleteAdvertiser(recordId: string): Promise<void> {
+export async function deleteAdvertiser(recordId: string): Promise<boolean> {
   if (!base) {
     throw new Error('Cannot delete advertiser: Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID.');
   }
 
+  if (!recordId) {
+    throw new Error('Advertiser ID is required');
+  }
+
   try {
-    await base(TABLES.ADVERTISERS).update(recordId, {
+    const record = await base(TABLES.ADVERTISERS).update(recordId, {
       'Status': 'Inactive',
     });
+    
+    if (!record) {
+      throw new Error('Advertiser not found or delete failed');
+    }
+    
+    return true;
   } catch (error) {
     console.error('Error deleting advertiser:', error);
     throw error;
