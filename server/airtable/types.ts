@@ -74,6 +74,17 @@ export interface AdProductFields extends FieldSet {
   'Status': 'Active' | 'Inactive';
 }
 
+// Pipeline Status type for campaigns
+export type PipelineStatus = 
+  | '문의중'               // Inquiry
+  | '견적제시'             // Quoted
+  | '일정조율중'           // Scheduling
+  | '부킹확정'             // Booking Confirmed
+  | '집행중'               // In Progress
+  | '결과보고'             // Reporting
+  | '세금계산서 발행 및 대금 청구'  // Invoice Issued
+  | '매출 입금';          // Payment Received
+
 // Campaign record fields
 export interface CampaignFields extends FieldSet {
   'Campaign Name': string;
@@ -82,6 +93,7 @@ export interface CampaignFields extends FieldSet {
   'Start Date': string; // ISO date string
   'End Date': string; // ISO date string
   'Status': 'Planning' | 'Active' | 'Completed' | 'Cancelled';
+  'Pipeline Status': PipelineStatus;
   'UTM Campaign'?: string;
   'Google Calendar ID'?: string;
   'Creatives'?: string[];

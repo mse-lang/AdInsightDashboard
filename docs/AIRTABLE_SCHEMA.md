@@ -91,12 +91,23 @@ Purpose: Primary data store for all advertising management entities
 | Start Date | Date | 시작일 | Yes |
 | End Date | Date | 종료일 | Yes |
 | Status | Single select | Planning / Active / Completed / Cancelled | Yes |
+| Pipeline Status | Single select | 문의중 / 견적제시 / 일정조율중 / 부킹확정 / 집행중 / 결과보고 / 세금계산서 발행 및 대금 청구 / 매출 입금 | Yes |
 | UTM Campaign | Single line text | UTM 파라미터 | Auto |
 | Google Calendar ID | Single line text | Calendar Event ID | No |
 | Creatives | Link to Creatives | 관련 소재 | - |
 | Reports | Link to Reports | 성과 리포트 | - |
 | Created | Created time | Auto-generated | Auto |
 | Last Modified | Last modified time | Auto-generated | Auto |
+
+**Pipeline Status 설명**:
+- **문의중**: 광고 문의 접수
+- **견적제시**: 견적서 발송
+- **일정조율중**: 광고 일정 조율
+- **부킹확정**: 광고 슬롯 부킹 완료
+- **집행중**: 캠페인 실행 중
+- **결과보고**: 성과 리포트 발송
+- **세금계산서 발행 및 대금 청구**: 세금계산서 발행 및 청구
+- **매출 입금**: 대금 입금 완료
 
 ---
 

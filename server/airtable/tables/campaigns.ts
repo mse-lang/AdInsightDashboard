@@ -1,5 +1,5 @@
 import { base, TABLES } from '../client';
-import type { CampaignFields, AirtableRecordType } from '../types';
+import type { CampaignFields, AirtableRecordType, PipelineStatus } from '../types';
 
 export type CampaignRecord = AirtableRecordType<CampaignFields>;
 
@@ -88,6 +88,75 @@ export async function getCampaignsByStatus(status: 'Planning' | 'Active' | 'Comp
   }
 }
 
+// Get campaigns by pipeline status
+export async function getCampaignsByPipelineStatus(pipelineStatus: PipelineStatus): Promise<CampaignRecord[]> {
+  if (!base) {
+    console.warn('[Airtable] getCampaignsByPipelineStatus called but Airtable not configured');
+    return [];
+  }
+
+  try {
+    const formula = `{Pipeline Status} = '${pipelineStatus}'`;
+
+    const records = await base(TABLES.CAMPAIGNS)
+      .select({
+        filterByFormula: formula,
+        sort: [{ field: 'Start Date', direction: 'desc' }],
+      })
+      .all();
+
+    return records as unknown as CampaignRecord[];
+  } catch (error) {
+    console.error('Error fetching campaigns by pipeline status:', error);
+    throw error;
+  }
+}
+
+// Get pipeline status counts for dashboard
+export async function getPipelineStatusCounts(): Promise<Record<PipelineStatus, number>> {
+  if (!base) {
+    console.warn('[Airtable] getPipelineStatusCounts called but Airtable not configured');
+    return {
+      '문의중': 0,
+      '견적제시': 0,
+      '일정조율중': 0,
+      '부킹확정': 0,
+      '집행중': 0,
+      '결과보고': 0,
+      '세금계산서 발행 및 대금 청구': 0,
+      '매출 입금': 0,
+    };
+  }
+
+  try {
+    const records = await base(TABLES.CAMPAIGNS).select().all();
+    
+    const counts: Record<PipelineStatus, number> = {
+      '문의중': 0,
+      '견적제시': 0,
+      '일정조율중': 0,
+      '부킹확정': 0,
+      '집행중': 0,
+      '결과보고': 0,
+      '세금계산서 발행 및 대금 청구': 0,
+      '매출 입금': 0,
+    };
+
+    for (const record of records) {
+      const campaignRecord = record as unknown as CampaignRecord;
+      const pipelineStatus = campaignRecord.fields['Pipeline Status'];
+      if (pipelineStatus && pipelineStatus in counts) {
+        counts[pipelineStatus]++;
+      }
+    }
+
+    return counts;
+  } catch (error) {
+    console.error('Error getting pipeline status counts:', error);
+    throw error;
+  }
+}
+
 // Create campaign
 export async function createCampaign(data: {
   campaignName: string;
@@ -95,6 +164,7 @@ export async function createCampaign(data: {
   startDate: string;
   endDate: string;
   status?: 'Planning' | 'Active' | 'Completed' | 'Cancelled';
+  pipelineStatus?: PipelineStatus;
   adProductIds?: string[];
   utmCampaign?: string;
   googleCalendarId?: string;
@@ -110,6 +180,7 @@ export async function createCampaign(data: {
       'Start Date': data.startDate,
       'End Date': data.endDate,
       'Status': data.status || 'Planning',
+      'Pipeline Status': data.pipelineStatus || '문의중',
     };
 
     if (data.adProductIds && data.adProductIds.length > 0) {
@@ -135,6 +206,7 @@ export async function updateCampaign(
     startDate: string;
     endDate: string;
     status: 'Planning' | 'Active' | 'Completed' | 'Cancelled';
+    pipelineStatus: PipelineStatus;
     adProductIds: string[];
     utmCampaign: string;
     googleCalendarId: string;
@@ -156,6 +228,7 @@ export async function updateCampaign(
     if (data.startDate !== undefined) fields['Start Date'] = data.startDate;
     if (data.endDate !== undefined) fields['End Date'] = data.endDate;
     if (data.status !== undefined) fields['Status'] = data.status;
+    if (data.pipelineStatus !== undefined) fields['Pipeline Status'] = data.pipelineStatus;
     if (data.adProductIds !== undefined) fields['Ad Products'] = data.adProductIds;
     if (data.utmCampaign !== undefined) fields['UTM Campaign'] = data.utmCampaign;
     if (data.googleCalendarId !== undefined) fields['Google Calendar ID'] = data.googleCalendarId;
