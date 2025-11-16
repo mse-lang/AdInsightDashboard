@@ -1,4 +1,4 @@
-import { Home, Users, FileText, BarChart3, Settings, Mail, Calendar } from "lucide-react";
+import { Home, Users, FileText, BarChart3, Settings, Mail, Calendar, Receipt, Briefcase } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -15,9 +15,11 @@ import logoImage from "@assets/venturesquare logo_로고만_1761404131673.png";
 
 const menuItems = [
   { title: "대시보드", url: "/", icon: Home },
-  { title: "광고주 관리", url: "/advertisers", icon: Users },
-  { title: "광고 집행 관리", url: "/ad-slots", icon: Calendar },
-  { title: "견적/청구", url: "/quotes", icon: FileText },
+  { title: "광고주 관리", url: "/advertisers-airtable", icon: Users },
+  { title: "견적 관리", url: "/quotes-airtable", icon: FileText },
+  { title: "세금계산서", url: "/invoices", icon: Receipt },
+  { title: "캠페인 관리", url: "/campaigns", icon: Briefcase },
+  { title: "광고 캘린더", url: "/calendar", icon: Calendar },
   { title: "성과 분석", url: "/analytics", icon: BarChart3 },
   { title: "광고소개서", url: "/materials", icon: Mail },
   { title: "설정", url: "/settings", icon: Settings },

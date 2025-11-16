@@ -21,6 +21,10 @@ import AdDetail from "@/pages/ad-detail";
 import AdSlots from "@/pages/ad-slots-detailed";
 import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
+import QuotesAirtable from "@/pages/quotes-airtable";
+import Invoices from "@/pages/invoices";
+import Campaigns from "@/pages/campaigns";
+import AdCalendar from "@/pages/calendar";
 import Materials from "@/pages/materials";
 import Settings from "@/pages/settings";
 import Analytics from "@/pages/analytics";
@@ -73,7 +77,11 @@ function MainRouter() {
           <Route path="/advertisers/:id" component={AdvertiserDetail} />
           <Route path="/advertisers" component={Advertisers} />
           <Route path="/ad-slots" component={AdSlots} />
+          <Route path="/quotes-airtable" component={QuotesAirtable} />
           <Route path="/quotes" component={Quotes} />
+          <Route path="/invoices" component={Invoices} />
+          <Route path="/campaigns" component={Campaigns} />
+          <Route path="/calendar" component={AdCalendar} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/materials" component={Materials} />
           <Route path="/settings" component={Settings} />
