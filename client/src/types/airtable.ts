@@ -50,6 +50,17 @@ export interface AirtableQuote {
   sentAt?: string | null;
 }
 
+export interface AirtableAdProduct {
+  id: string;
+  productName: string;
+  description?: string;
+  format: 'Banner' | 'Newsletter' | 'Native' | 'Video';
+  dimensions?: string;
+  position?: string;
+  unitPrice: number;
+  status: 'Active' | 'Inactive';
+}
+
 export interface QuoteItem {
   id: string;
   quoteId: string | null;

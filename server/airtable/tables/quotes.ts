@@ -94,6 +94,7 @@ export async function createQuote(data: {
   advertiserId: string;
   totalAmount: number;
   discountRate?: number;
+  finalAmount?: number;
   status?: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
   pdfUrl?: string;
 }): Promise<QuoteRecord> {
@@ -129,6 +130,7 @@ export async function updateQuote(
   data: Partial<{
     totalAmount: number;
     discountRate: number;
+    finalAmount: number;
     status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
     pdfUrl: string;
     sentAt: string;

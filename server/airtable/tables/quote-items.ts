@@ -48,6 +48,7 @@ export async function createQuoteItem(data: {
   adProductId: string;
   quantity: number;
   unitPrice: number;
+  subtotal?: number;
   duration?: number;
 }): Promise<QuoteItemRecord> {
   if (!base) {
@@ -165,6 +166,7 @@ export async function bulkCreateQuoteItems(
     adProductId: string;
     quantity: number;
     unitPrice: number;
+    subtotal?: number;
     duration?: number;
   }>
 ): Promise<QuoteItemRecord[]> {

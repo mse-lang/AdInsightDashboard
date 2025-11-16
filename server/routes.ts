@@ -99,7 +99,7 @@ function transformQuoteForAPI(record: QuoteRecord) {
     quoteNumber: record.fields['Quote Number'],
     advertiserId: record.fields['Advertiser']?.[0] || null,
     totalAmount: record.fields['Total Amount'],
-    discountRate: record.fields['Discount Rate'] || 0,
+    discountRate: (record.fields['Discount Rate'] || 0) * 100, // Convert from decimal (0-1) to percentage (0-100) for frontend
     finalAmount: record.fields['Final Amount'] || record.fields['Total Amount'],
     status: record.fields['Status'],
     pdfUrl: record.fields['PDF URL'] || '',
@@ -1140,17 +1140,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({
         advertiserId: z.string().trim().min(1, "Advertiser ID is required"),
         totalAmount: z.number().min(0, "Total amount must be 0 or greater"),
-        discountRate: z.number().min(0).max(1).optional(),
+        discountRate: z.number().min(0).max(100).optional(),
+        finalAmount: z.number().min(0).optional(),
         status: z.enum(['Draft', 'Sent', 'Approved', 'Rejected']).optional(),
         pdfUrl: z.string().trim().url().optional().or(z.literal('')),
       });
       
       const data = schema.parse(req.body);
       
+      // Convert discount rate from percentage (0-100) to decimal (0-1)
+      const discountRateDecimal = data.discountRate !== undefined ? data.discountRate / 100 : undefined;
+      
       const record = await quotesTable.createQuote({
         advertiserId: data.advertiserId,
         totalAmount: data.totalAmount,
-        discountRate: data.discountRate,
+        discountRate: discountRateDecimal,
+        finalAmount: data.finalAmount,
         status: data.status || 'Draft',
         pdfUrl: data.pdfUrl,
       });
@@ -1178,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const schema = z.object({
         totalAmount: z.number().min(0).optional(),
-        discountRate: z.number().min(0).max(1).optional(),
+        discountRate: z.number().min(0).max(100).optional(),
         status: z.enum(['Draft', 'Sent', 'Approved', 'Rejected']).optional(),
         pdfUrl: z.string().trim().url().optional().or(z.literal('')),
         sentAt: z.string().optional(),
@@ -1187,9 +1192,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = schema.parse(req.body);
       const recordId = req.params.id;
       
+      // Convert discount rate from percentage (0-100) to decimal (0-1)
+      const discountRateDecimal = data.discountRate !== undefined ? data.discountRate / 100 : undefined;
+      
       const record = await quotesTable.updateQuote(recordId, {
         totalAmount: data.totalAmount,
-        discountRate: data.discountRate,
+        discountRate: discountRateDecimal,
         status: data.status,
         pdfUrl: data.pdfUrl,
         sentAt: data.sentAt,
@@ -1354,6 +1362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         adProductId: z.string().trim().min(1, "Ad Product ID is required"),
         quantity: z.number().int().positive("Quantity must be positive"),
         unitPrice: z.number().min(0, "Unit price cannot be negative"),
+        subtotal: z.number().min(0).optional(),
         duration: z.number().int().positive().optional(),
       });
       
@@ -1364,6 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         adProductId: data.adProductId,
         quantity: data.quantity,
         unitPrice: data.unitPrice,
+        subtotal: data.subtotal,
         duration: data.duration,
       });
       
@@ -1389,18 +1399,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const schema = z.object({
+        quoteId: z.string().trim().min(1, "Quote ID is required"),
         items: z.array(z.object({
-          quoteId: z.string().trim().min(1),
           adProductId: z.string().trim().min(1),
           quantity: z.number().int().positive(),
           unitPrice: z.number().min(0),
+          subtotal: z.number().min(0).optional(),
           duration: z.number().int().positive().optional(),
         })).min(1, "At least one item is required"),
       });
       
       const data = schema.parse(req.body);
       
-      const records = await quoteItemsTable.bulkCreateQuoteItems(data.items);
+      const itemsWithQuoteId = data.items.map(item => ({
+        ...item,
+        quoteId: data.quoteId,
+      }));
+      
+      const records = await quoteItemsTable.bulkCreateQuoteItems(itemsWithQuoteId);
       const items = records.map(transformQuoteItemForAPI);
       res.json(items);
     } catch (error) {
