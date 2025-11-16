@@ -4,7 +4,7 @@ import { ProgressPipeline } from "@/components/progress-pipeline";
 import { PerformanceChart } from "@/components/performance-chart";
 import { SalesPieChart } from "@/components/sales-pie-chart";
 import { NotificationBanner } from "@/components/notification-banner";
-import { ThreeMonthCalendar } from "@/components/three-month-calendar";
+import { NavigableCalendar } from "@/components/navigable-calendar";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -171,7 +171,7 @@ export default function Dashboard() {
 
       <ProgressPipeline stages={mockStages} />
 
-      <ThreeMonthCalendar />
+      <NavigableCalendar />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PerformanceChart data={mockChartData} />
