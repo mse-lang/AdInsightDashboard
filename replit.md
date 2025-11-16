@@ -45,6 +45,29 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Integrated Advertising Inquiries Dashboard Complete** ✅
+- ✅ **Gmail Integration** (Replit Connector):
+  - GET /api/inquiries/gmail - Fetch ad@venturesquare.net emails
+  - Service layer with lazy initialization (graceful degradation)
+  - Returns { success, emails, total } with proper pagination support
+- ✅ **Google Sheets Integration** (Replit Connector):
+  - GET /api/inquiries/survey - Fetch survey responses from Google Forms
+  - Spreadsheet ID: 1UQnH5bGhmZIkQ_-WJil-vsibpjq0pmbophowGjLqhCE
+  - Returns { success, responses, total } with advertiser matching
+- ✅ **Advertiser Matching Logic**:
+  - Automatic matching by email, company name, or phone number
+  - Phone normalization (digits-only comparison)
+  - Null-safe implementation for missing phone numbers
+  - Matched records include: matchedAdvertiserId, matchedAdvertiserName
+- ✅ **Frontend /inquiries Page**:
+  - Statistics cards: Total inquiries, Gmail count, Survey count
+  - Gmail tab: Email list with sender, subject, date, "Gmail에서 보기" button
+  - Survey tab: Response list with company, email, phone, matched advertiser badge
+  - Responsive tabbed UI with proper loading states
+- ✅ **Admin Account Update**:
+  - Added mj@venturesquare.net to admin list
+  - Existing admins: mse@venturesquare.net, rosie@venturesquare.net
+
 **2025-11-16**: **Stibee API v2 Integration Complete** ✅ - Newsletter Analytics
 - ✅ **Backend Stibee API v2 Integration**:
   - GET /api/analytics/stibee/summary - Overall newsletter statistics with trends
