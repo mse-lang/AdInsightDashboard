@@ -16,12 +16,14 @@ import * as quotesTable from "./airtable/tables/quotes";
 import * as quoteItemsTable from "./airtable/tables/quote-items";
 import * as invoicesTable from "./airtable/tables/invoices";
 import * as settingsTable from "./airtable/tables/settings";
+import * as adProductsTable from "./airtable/tables/ad-products";
 import type { AgencyRecord } from "./airtable/tables/agencies";
 import type { AdvertiserRecord } from "./airtable/tables/advertisers";
 import type { CampaignRecord } from "./airtable/tables/campaigns";
 import type { QuoteRecord } from "./airtable/tables/quotes";
 import type { QuoteItemRecord } from "./airtable/tables/quote-items";
 import type { InvoiceRecord } from "./airtable/tables/invoices";
+import type { AdProductRecord } from "./airtable/tables/ad-products";
 import { solapiService, SolapiServiceError } from "./services/solapi.service";
 import * as gmailService from "./services/gmail.service";
 import * as googleSheetsService from "./services/google-sheets.service";
@@ -102,6 +104,19 @@ function transformQuoteForAPI(record: QuoteRecord) {
     status: record.fields['Status'],
     pdfUrl: record.fields['PDF URL'] || '',
     sentAt: record.fields['Sent At'] || null,
+  };
+}
+
+function transformAdProductForAPI(record: AdProductRecord) {
+  return {
+    id: record.id,
+    productName: record.fields['Product Name'],
+    description: record.fields['Description'] || '',
+    format: record.fields['Format'],
+    dimensions: record.fields['Dimensions'] || '',
+    position: record.fields['Position'] || '',
+    unitPrice: record.fields['Unit Price'],
+    status: record.fields['Status'],
   };
 }
 
@@ -1020,6 +1035,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error creating communication log:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: 'Failed to create communication log', details: errorMessage });
+    }
+  });
+
+  // Ad Products routes - Airtable-based
+  app.get("/api/ad-products", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+      
+      const records = await adProductsTable.getActiveAdProducts();
+      const products = records.map(transformAdProductForAPI);
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching ad products:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch ad products', details: errorMessage });
+    }
+  });
+
+  app.get("/api/ad-products/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await adProductsTable.getAdProductById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Ad product not found" });
+      }
+      
+      res.json(transformAdProductForAPI(record));
+    } catch (error) {
+      console.error('Error fetching ad product:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch ad product', details: errorMessage });
     }
   });
 
