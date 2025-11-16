@@ -28,6 +28,12 @@ import * as googleSheetsService from "./services/google-sheets.service";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
+// Helper for optional string fields - converts empty strings to undefined
+const optionalString = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '') ? undefined : val,
+  z.string().optional()
+);
+
 // Middleware for Airtable-based authentication
 const requireAuth = (req: any, res: any, next: any) => {
   // Development mode: auto-populate user if not authenticated
@@ -421,8 +427,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactPerson: z.string().trim().min(1, "Contact person is required"),
         email: z.string().trim().email("Valid email is required"),
         phone: z.string().trim().min(1, "Phone is required"),
-        businessRegistrationNumber: z.string().trim().optional(),
-        notes: z.string().trim().optional(),
+        businessRegistrationNumber: optionalString,
+        notes: optionalString,
         status: z.enum(['Active', 'Inactive']).optional(),
       });
       
@@ -468,8 +474,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactPerson: z.string().trim().min(1).optional(),
         email: z.string().trim().email().optional(),
         phone: z.string().trim().min(1).optional(),
-        businessRegistrationNumber: z.string().trim().optional(),
-        notes: z.string().trim().optional(),
+        businessRegistrationNumber: optionalString,
+        notes: optionalString,
         status: z.enum(['Active', 'Inactive']).optional(),
       });
       
@@ -580,12 +586,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactPersonType: z.enum(['Advertiser', 'Agency']),
         email: z.string().trim().email("Valid email is required"),
         phone: z.string().trim().min(1, "Phone is required"),
-        businessNumber: z.string().trim().optional().or(z.literal('')),
-        businessRegistrationNumber: z.string().trim().optional().or(z.literal('')),
-        bankAccountNumber: z.string().trim().optional().or(z.literal('')),
-        adMaterials: z.string().trim().optional().or(z.literal('')),
-        agencyId: z.string().trim().optional().or(z.literal('')),
-        industry: z.string().trim().optional().or(z.literal('')),
+        businessNumber: optionalString,
+        businessRegistrationNumber: optionalString,
+        bankAccountNumber: optionalString,
+        adMaterials: optionalString,
+        agencyId: optionalString,
+        industry: optionalString,
         status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
       });
       
@@ -617,6 +623,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(transformAdvertiserForAPI(record));
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('[Advertiser POST] Zod validation error:', JSON.stringify(error.errors, null, 2));
+        console.error('[Advertiser POST] Request body:', JSON.stringify(req.body, null, 2));
         return res.status(400).json({ error: 'Invalid request data', details: error.errors });
       }
       console.error('Error creating advertiser:', error);
@@ -638,12 +646,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactPersonType: z.enum(['Advertiser', 'Agency']).optional(),
         email: z.string().trim().email().optional(),
         phone: z.string().trim().min(1).optional(),
-        businessNumber: z.string().trim().optional(),
-        businessRegistrationNumber: z.string().trim().optional(),
-        bankAccountNumber: z.string().trim().optional(),
-        adMaterials: z.string().trim().optional(),
-        agencyId: z.string().trim().optional(),
-        industry: z.string().trim().optional(),
+        businessNumber: optionalString,
+        businessRegistrationNumber: optionalString,
+        bankAccountNumber: optionalString,
+        adMaterials: optionalString,
+        agencyId: optionalString,
+        industry: optionalString,
         status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
       });
       
