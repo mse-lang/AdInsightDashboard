@@ -21,6 +21,29 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Advertiser CSV Import/Export Enhancement** ✅
+- ✅ **Enhanced CSV Download**:
+  - Expanded to 12 fields: 광고주, 사업자번호, 사업자등록번호, 계좌번호, 광고소재, 담당자, 담당자구분, 에이전시, 이메일, 전화번호, 업종, 상태
+  - RFC 4180 compliant quote escaping (" → "")
+  - Contact person type Korean translation (Advertiser → 광고주, Agency → 에이전시)
+  - UTF-8 BOM for Excel compatibility
+- ✅ **RFC 4180 CSV Parser**:
+  - State-based character parsing
+  - Handles quoted commas and quotes correctly
+  - Preserves all whitespace (no trim)
+  - Supports both CRLF and LF line endings
+  - Automatic quote unescaping ("" → ")
+- ✅ **Enhanced CSV Upload**:
+  - Processes all 12 fields
+  - Agency name to ID mapping
+  - Contact person type Korean to English conversion
+  - New fields: businessRegistrationNumber, bankAccountNumber, adMaterials
+  - Field count validation and error handling
+  - Success/failure count with toast notifications
+- ✅ **Known Limitation**:
+  - Does not support newlines within quoted fields (very rare in practice)
+  - User accepted this limitation for simplicity
+
 **2025-11-16**: **Dashboard Calendar - Navigable Calendar View** ✅
 - ✅ **Navigable Calendar Component**:
   - Created NavigableCalendar component replacing ThreeMonthCalendar
