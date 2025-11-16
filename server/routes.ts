@@ -580,12 +580,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactPersonType: z.enum(['Advertiser', 'Agency']),
         email: z.string().trim().email("Valid email is required"),
         phone: z.string().trim().min(1, "Phone is required"),
-        businessNumber: z.string().trim().optional(),
-        businessRegistrationNumber: z.string().trim().optional(),
-        bankAccountNumber: z.string().trim().optional(),
-        adMaterials: z.string().trim().optional(),
-        agencyId: z.string().trim().optional(),
-        industry: z.string().trim().optional(),
+        businessNumber: z.string().trim().optional().or(z.literal('')),
+        businessRegistrationNumber: z.string().trim().optional().or(z.literal('')),
+        bankAccountNumber: z.string().trim().optional().or(z.literal('')),
+        adMaterials: z.string().trim().optional().or(z.literal('')),
+        agencyId: z.string().trim().optional().or(z.literal('')),
+        industry: z.string().trim().optional().or(z.literal('')),
         status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
       });
       
