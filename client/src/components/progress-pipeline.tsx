@@ -15,7 +15,7 @@ export function ProgressPipeline({ stages }: ProgressPipelineProps) {
   const [, setLocation] = useLocation();
 
   const handleStageClick = (status: AdStatus) => {
-    setLocation(`/ad-slots?status=${encodeURIComponent(status)}`);
+    setLocation(`/campaigns?pipelineStatus=${encodeURIComponent(status)}`);
   };
 
   return (

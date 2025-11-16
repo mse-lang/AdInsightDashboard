@@ -8,45 +8,48 @@ import { NavigableCalendar } from "@/components/navigable-calendar";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import type { Advertiser } from "@shared/schema";
+
+type PipelineStatus = 
+  | '문의중'
+  | '견적제시'
+  | '일정조율중'
+  | '부킹확정'
+  | '집행중'
+  | '결과보고'
+  | '세금계산서 발행 및 대금 청구'
+  | '매출 입금';
 
 export default function Dashboard() {
   const [hasNotification, setHasNotification] = useState(true);
   const [, setLocation] = useLocation();
 
-  const { data: advertisers = [] } = useQuery<Advertiser[]>({
-    queryKey: ["/api/advertisers"],
+  // Fetch campaign pipeline status counts
+  const { data: pipelineCounts, isLoading: isLoadingPipeline } = useQuery<Record<PipelineStatus, number>>({
+    queryKey: ["/api/campaigns/pipeline-counts"],
   });
 
-
-  const monthlyRevenue = useMemo(() => {
-    const revenueStatuses = ["세금계산서 발행 및 대금 청구", "매출 입금"];
-    const total = advertisers
-      .filter(adv => revenueStatuses.includes(adv.status))
-      .reduce((sum, adv) => {
-        if (!adv.amount) return sum;
-        const numericAmount = parseInt(adv.amount.replace(/[^0-9]/g, ''));
-        return sum + (isNaN(numericAmount) ? 0 : numericAmount);
-      }, 0);
-    return `₩${total.toLocaleString()}`;
-  }, [advertisers]);
-
   const newInquiryCount = useMemo(() => {
-    const inquiryStatuses = ["문의중", "견적제시", "일정조율중"];
-    return advertisers.filter(adv => inquiryStatuses.includes(adv.status)).length;
-  }, [advertisers]);
+    if (!pipelineCounts) return 0;
+    return (pipelineCounts['문의중'] || 0) + 
+           (pipelineCounts['견적제시'] || 0) + 
+           (pipelineCounts['일정조율중'] || 0);
+  }, [pipelineCounts]);
 
   const activeAdsCount = useMemo(() => {
-    const activeStatuses = ["부킹확정", "집행중"];
-    return advertisers.filter(adv => activeStatuses.includes(adv.status)).length;
-  }, [advertisers]);
+    if (!pipelineCounts) return 0;
+    return (pipelineCounts['부킹확정'] || 0) + 
+           (pipelineCounts['집행중'] || 0);
+  }, [pipelineCounts]);
 
-  const totalProgressCount = useMemo(() => advertisers.length, [advertisers]);
+  const totalProgressCount = useMemo(() => {
+    if (!pipelineCounts) return 0;
+    return Object.values(pipelineCounts).reduce((sum, count) => sum + count, 0);
+  }, [pipelineCounts]);
 
   const stagesCounts = useMemo(() => {
-    type AdStatus = "문의중" | "견적제시" | "일정조율중" | "부킹확정" | "집행중" | "결과보고" | "세금계산서 발행 및 대금 청구" | "매출 입금";
+    if (!pipelineCounts) return [];
     
-    const allStatuses: AdStatus[] = [
+    const allStatuses: PipelineStatus[] = [
       "문의중",
       "견적제시", 
       "일정조율중",
@@ -59,21 +62,12 @@ export default function Dashboard() {
     
     return allStatuses.map(status => ({
       status,
-      count: advertisers.filter(adv => adv.status === status).length
+      count: pipelineCounts[status] || 0
     }));
-  }, [advertisers]);
+  }, [pipelineCounts]);
 
-  // Mock data - todo: remove mock functionality
-  const mockStages = stagesCounts.length > 0 ? stagesCounts : [
-    { status: "문의중" as const, count: 5 },
-    { status: "견적제시" as const, count: 3 },
-    { status: "일정조율중" as const, count: 2 },
-    { status: "부킹확정" as const, count: 8 },
-    { status: "집행중" as const, count: 12 },
-    { status: "결과보고" as const, count: 4 },
-    { status: "세금계산서 발행 및 대금 청구" as const, count: 1 },
-    { status: "매출 입금" as const, count: 6 },
-  ];
+  // Use real data if available, otherwise show loading state
+  const displayStages = isLoadingPipeline ? [] : stagesCounts;
 
   const mockAdvertisers = [
     {
@@ -136,17 +130,17 @@ export default function Dashboard() {
           value={newInquiryCount}
           icon={Users}
           change={{ value: "8.2%", trend: "up" }}
-          onClick={() => setLocation("/advertisers?filter=inquiry")}
+          onClick={() => setLocation("/campaigns?filter=inquiry")}
         />
         <StatCard 
           title="집행중 광고" 
           value={activeAdsCount} 
           icon={TrendingUp}
-          onClick={() => setLocation("/advertisers?filter=active")}
+          onClick={() => setLocation("/campaigns?filter=active")}
         />
         <StatCard
           title="이번달 매출"
-          value={monthlyRevenue}
+          value="₩0"
           icon={DollarSign}
           change={{ value: "12.5%", trend: "up" }}
           onClick={() => setLocation("/quotes")}
@@ -155,11 +149,11 @@ export default function Dashboard() {
           title="진행 건수" 
           value={totalProgressCount} 
           icon={Calendar}
-          onClick={() => setLocation("/analytics")}
+          onClick={() => setLocation("/campaigns")}
         />
       </div>
 
-      <ProgressPipeline stages={mockStages} />
+      <ProgressPipeline stages={displayStages} />
 
       <NavigableCalendar />
 
