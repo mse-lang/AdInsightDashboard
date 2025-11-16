@@ -138,6 +138,7 @@ function transformCampaignForAPI(record: CampaignRecord) {
     startDate: record.fields['Start Date'],
     endDate: record.fields['End Date'],
     status: record.fields['Status'],
+    pipelineStatus: record.fields['Pipeline Status'] || '문의중',
     utmCampaign: record.fields['UTM Campaign'] || '',
     googleCalendarId: record.fields['Google Calendar ID'] || '',
     creativeIds: record.fields['Creatives'] || [],
@@ -798,6 +799,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pipeline status counts for dashboard
+  app.get("/api/campaigns/pipeline-counts", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const counts = await campaignsTable.getPipelineStatusCounts();
+      res.json(counts);
+    } catch (error) {
+      console.error('Error fetching pipeline status counts:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch pipeline status counts', details: errorMessage });
+    }
+  });
+
+  // Get campaigns by pipeline status
+  app.get("/api/campaigns/pipeline/:status", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const pipelineStatus = decodeURIComponent(req.params.status) as any;
+      const campaigns = await campaignsTable.getCampaignsByPipelineStatus(pipelineStatus);
+      res.json(campaigns.map(transformCampaignForAPI));
+    } catch (error) {
+      console.error('Error fetching campaigns by pipeline status:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch campaigns', details: errorMessage });
+    }
+  });
+
   app.post("/api/campaigns", requireAuth, async (req, res) => {
     try {
       if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
@@ -810,6 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startDate: z.string(),
         endDate: z.string(),
         status: z.enum(['Planning', 'Active', 'Completed', 'Cancelled']).optional(),
+        pipelineStatus: z.enum(['문의중', '견적제시', '일정조율중', '부킹확정', '집행중', '결과보고', '세금계산서 발행 및 대금 청구', '매출 입금']).optional(),
         adProductIds: z.array(z.string()).optional(),
         utmCampaign: z.string().optional(),
       });
@@ -844,6 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startDate: z.string().optional(),
         endDate: z.string().optional(),
         status: z.enum(['Planning', 'Active', 'Completed', 'Cancelled']).optional(),
+        pipelineStatus: z.enum(['문의중', '견적제시', '일정조율중', '부킹확정', '집행중', '결과보고', '세금계산서 발행 및 대금 청구', '매출 입금']).optional(),
         adProductIds: z.array(z.string()).optional(),
         utmCampaign: z.string().optional(),
       });
