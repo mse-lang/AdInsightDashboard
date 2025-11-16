@@ -120,6 +120,7 @@ const TABLES: TableConfig[] = [
     name: 'Communication_Logs',
     description: 'Email, SMS, KakaoTalk communication tracking',
     fields: [
+      { name: 'Subject', type: 'singleLineText' },
       { 
         name: 'Type', 
         type: 'singleSelect',
@@ -132,7 +133,6 @@ const TABLES: TableConfig[] = [
           ]
         }
       },
-      { name: 'Subject', type: 'singleLineText' },
       { name: 'Content', type: 'multilineText' },
       { 
         name: 'Status', 
@@ -148,11 +148,11 @@ const TABLES: TableConfig[] = [
       },
       { 
         name: 'Sent At', 
-        type: 'date',
+        type: 'dateTime',
         options: {
-          dateFormat: { name: 'iso' },
-          timeFormat: { name: '24hour' },
-          timeZone: 'Asia/Seoul'
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' },
+          timeFormat: { name: '24hour', format: 'HH:mm' },
+          timeZone: 'utc'
         }
       },
       { name: 'External ID', type: 'singleLineText' },
@@ -179,7 +179,7 @@ const TABLES: TableConfig[] = [
       },
       { name: 'Dimensions', type: 'singleLineText' },
       { name: 'Position', type: 'singleLineText' },
-      { name: 'Unit Price', type: 'currency', options: { precision: 0 } },
+      { name: 'Unit Price', type: 'currency', options: { precision: 0, symbol: 'KRW' } },
       { 
         name: 'Status', 
         type: 'singleSelect',
@@ -201,14 +201,14 @@ const TABLES: TableConfig[] = [
         name: 'Start Date', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { 
         name: 'End Date', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { 
@@ -269,8 +269,8 @@ const TABLES: TableConfig[] = [
     name: 'Quotes',
     description: 'Quote header information',
     fields: [
-      { name: 'Quote Number', type: 'autoNumber' },
-      { name: 'Total Amount', type: 'currency', options: { precision: 0 } },
+      { name: 'Quote Title', type: 'singleLineText' },
+      { name: 'Total Amount', type: 'currency', options: { precision: 0, symbol: 'KRW' } },
       { name: 'Discount Rate', type: 'percent', options: { precision: 0 } },
       { 
         name: 'Status', 
@@ -287,11 +287,11 @@ const TABLES: TableConfig[] = [
       { name: 'PDF URL', type: 'url' },
       { 
         name: 'Sent At', 
-        type: 'date',
+        type: 'dateTime',
         options: {
-          dateFormat: { name: 'iso' },
-          timeFormat: { name: '24hour' },
-          timeZone: 'Asia/Seoul'
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' },
+          timeFormat: { name: '24hour', format: 'HH:mm' },
+          timeZone: 'utc'
         }
       },
     ]
@@ -301,7 +301,7 @@ const TABLES: TableConfig[] = [
     description: 'Individual line items in quotes',
     fields: [
       { name: 'Quantity', type: 'number', options: { precision: 0 } },
-      { name: 'Unit Price', type: 'currency', options: { precision: 0 } },
+      { name: 'Unit Price', type: 'currency', options: { precision: 0, symbol: 'KRW' } },
       { name: 'Duration', type: 'number', options: { precision: 0 } },
     ]
   },
@@ -309,8 +309,8 @@ const TABLES: TableConfig[] = [
     name: 'Invoices',
     description: 'Tax invoice tracking',
     fields: [
-      { name: 'Invoice Number', type: 'autoNumber' },
-      { name: 'Amount', type: 'currency', options: { precision: 0 } },
+      { name: 'Invoice Title', type: 'singleLineText' },
+      { name: 'Amount', type: 'currency', options: { precision: 0, symbol: 'KRW' } },
       { 
         name: 'Status', 
         type: 'singleSelect',
@@ -327,21 +327,21 @@ const TABLES: TableConfig[] = [
         name: 'Issue Date', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { 
         name: 'Due Date', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { 
         name: 'Payment Date', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { name: 'Notes', type: 'multilineText' },
@@ -356,14 +356,14 @@ const TABLES: TableConfig[] = [
         name: 'Period Start', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { 
         name: 'Period End', 
         type: 'date',
         options: {
-          dateFormat: { name: 'iso' }
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' }
         }
       },
       { name: 'Impressions', type: 'number', options: { precision: 0 } },
@@ -383,11 +383,11 @@ const TABLES: TableConfig[] = [
       },
       { 
         name: 'Sent At', 
-        type: 'date',
+        type: 'dateTime',
         options: {
-          dateFormat: { name: 'iso' },
-          timeFormat: { name: '24hour' },
-          timeZone: 'Asia/Seoul'
+          dateFormat: { name: 'iso', format: 'YYYY-MM-DD' },
+          timeFormat: { name: '24hour', format: 'HH:mm' },
+          timeZone: 'utc'
         }
       },
     ]
@@ -396,6 +396,7 @@ const TABLES: TableConfig[] = [
     name: 'System_Settings',
     description: 'API keys, templates, and configuration',
     fields: [
+      { name: 'Key', type: 'singleLineText' },
       { 
         name: 'Category', 
         type: 'singleSelect',
@@ -407,7 +408,6 @@ const TABLES: TableConfig[] = [
           ]
         }
       },
-      { name: 'Key', type: 'singleLineText' },
       { name: 'Value', type: 'multilineText' },
       { name: 'Description', type: 'multilineText' },
     ]
@@ -427,6 +427,11 @@ async function createTable(table: TableConfig) {
     console.log(`✅ Created: ${table.name} (${response.data.id})`);
     return response.data;
   } catch (error: any) {
+    if (error.response?.data?.error?.type === 'DUPLICATE_TABLE_NAME') {
+      console.log(`⏭️  Skipped: ${table.name} (already exists)`);
+      return null;
+    }
+    
     if (error.response?.data) {
       console.error(`❌ Failed to create ${table.name}:`, error.response.data);
     } else {
