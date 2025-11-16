@@ -24,6 +24,7 @@ export const base = AIRTABLE_ENABLED
 // Table names
 export const TABLES = {
   USERS: 'Users',
+  AGENCIES: 'Agencies',
   ADVERTISERS: 'Advertisers',
   COMMUNICATION_LOGS: 'Communication_Logs',
   AD_PRODUCTS: 'Ad_Products',

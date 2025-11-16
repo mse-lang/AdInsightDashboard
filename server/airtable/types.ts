@@ -12,11 +12,28 @@ export interface UserFields extends FieldSet {
   'Status': 'Active' | 'Inactive';
 }
 
+// Agency record fields (에이전시)
+export interface AgencyFields extends FieldSet {
+  'Name': string;
+  'Business Registration Number'?: string;
+  'Contact Person': string;
+  'Email': string;
+  'Phone': string;
+  'Status': 'Active' | 'Inactive';
+  'Notes'?: string;
+  'Advertisers'?: string[]; // Array of advertiser record IDs
+}
+
 // Advertiser record fields
 export interface AdvertiserFields extends FieldSet {
   'Company Name': string;
   'Business Number'?: string;
+  'Business Registration Number'?: string; // 사업자등록번호
+  'Bank Account Number'?: string; // 통장 번호
+  'Ad Materials'?: string; // 광고 소재/서비스/제품명 (쉼표 구분)
   'Contact Person': string;
+  'Contact Person Type': 'Advertiser' | 'Agency'; // 담당자 소속
+  'Agency'?: string[]; // 에이전시 ID (담당자가 Agency인 경우)
   'Email': string;
   'Phone': string;
   'Industry'?: string;

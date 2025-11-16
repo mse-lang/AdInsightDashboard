@@ -71,9 +71,14 @@ export async function searchAdvertisers(query: string): Promise<AdvertiserRecord
 export async function createAdvertiser(data: {
   companyName: string;
   contactPerson: string;
+  contactPersonType: 'Advertiser' | 'Agency';
   email: string;
   phone: string;
   businessNumber?: string;
+  businessRegistrationNumber?: string;
+  bankAccountNumber?: string;
+  adMaterials?: string;
+  agencyId?: string;
   industry?: string;
   accountManagerId?: string;
   status?: 'Lead' | 'Active' | 'Inactive';
@@ -86,12 +91,17 @@ export async function createAdvertiser(data: {
     const fields: Partial<AdvertiserFields> = {
       'Company Name': data.companyName,
       'Contact Person': data.contactPerson,
+      'Contact Person Type': data.contactPersonType,
       'Email': data.email,
       'Phone': data.phone,
       'Status': data.status || 'Lead',
     };
 
     if (data.businessNumber) fields['Business Number'] = data.businessNumber;
+    if (data.businessRegistrationNumber) fields['Business Registration Number'] = data.businessRegistrationNumber;
+    if (data.bankAccountNumber) fields['Bank Account Number'] = data.bankAccountNumber;
+    if (data.adMaterials) fields['Ad Materials'] = data.adMaterials;
+    if (data.agencyId) fields['Agency'] = [data.agencyId];
     if (data.industry) fields['Industry'] = data.industry;
     if (data.accountManagerId) fields['Account Manager'] = [data.accountManagerId];
 
@@ -109,9 +119,14 @@ export async function updateAdvertiser(
   data: Partial<{
     companyName: string;
     contactPerson: string;
+    contactPersonType: 'Advertiser' | 'Agency';
     email: string;
     phone: string;
     businessNumber: string;
+    businessRegistrationNumber: string;
+    bankAccountNumber: string;
+    adMaterials: string;
+    agencyId: string;
     industry: string;
     accountManagerId: string;
     status: 'Lead' | 'Active' | 'Inactive';
@@ -130,9 +145,14 @@ export async function updateAdvertiser(
 
     if (data.companyName) fields['Company Name'] = data.companyName;
     if (data.contactPerson) fields['Contact Person'] = data.contactPerson;
+    if (data.contactPersonType) fields['Contact Person Type'] = data.contactPersonType;
     if (data.email) fields['Email'] = data.email;
     if (data.phone) fields['Phone'] = data.phone;
     if (data.businessNumber) fields['Business Number'] = data.businessNumber;
+    if (data.businessRegistrationNumber) fields['Business Registration Number'] = data.businessRegistrationNumber;
+    if (data.bankAccountNumber) fields['Bank Account Number'] = data.bankAccountNumber;
+    if (data.adMaterials !== undefined) fields['Ad Materials'] = data.adMaterials;
+    if (data.agencyId) fields['Agency'] = [data.agencyId];
     if (data.industry) fields['Industry'] = data.industry;
     if (data.accountManagerId) fields['Account Manager'] = [data.accountManagerId];
     if (data.status) fields['Status'] = data.status;

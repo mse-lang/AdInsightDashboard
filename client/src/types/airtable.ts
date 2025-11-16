@@ -1,13 +1,31 @@
+export interface AirtableAgency {
+  id: string;
+  name: string;
+  businessRegistrationNumber?: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  status: 'Active' | 'Inactive';
+  notes?: string;
+}
+
 export interface AirtableAdvertiser {
   id: string;
   companyName: string;
   businessNumber?: string;
+  businessRegistrationNumber?: string;
+  bankAccountNumber?: string;
+  adMaterials?: string;
   contactPerson: string;
+  contactPersonType: 'Advertiser' | 'Agency';
+  agencyId?: string | null;
+  agencyName?: string; // Lookup field
   email: string;
   phone: string;
   industry?: string;
   status: 'Lead' | 'Active' | 'Inactive';
   accountManager?: string | null;
+  campaigns?: string[]; // Campaign IDs
 }
 
 export interface CommunicationLog {
