@@ -25,6 +25,9 @@ import type { InvoiceRecord } from "./airtable/tables/invoices";
 import { solapiService, SolapiServiceError } from "./services/solapi.service";
 import * as gmailService from "./services/gmail.service";
 import * as googleSheetsService from "./services/google-sheets.service";
+import * as taxInvoicesTable from "./airtable/tables/tax-invoices";
+import { getBarobillClient } from "./barobill/client";
+import type { TaxInvoiceData } from "./barobill/types";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
@@ -2895,6 +2898,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         error: 'Failed to link inquiry to advertiser',
         details: errorMessage
+      });
+    }
+  });
+
+  // Tax Invoices API (Barobill Integration)
+  app.get("/api/tax-invoices", async (req, res) => {
+    try {
+      const invoices = await taxInvoicesTable.getAllTaxInvoices();
+      res.json(invoices);
+    } catch (error) {
+      console.error('Error fetching tax invoices:', error);
+      res.status(500).json({ error: '세금계산서 목록 조회 실패' });
+    }
+  });
+
+  app.get("/api/tax-invoices/:id", async (req, res) => {
+    try {
+      const invoice = await taxInvoicesTable.getTaxInvoiceById(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ error: '세금계산서를 찾을 수 없습니다' });
+      }
+      res.json(invoice);
+    } catch (error) {
+      console.error('Error fetching tax invoice:', error);
+      res.status(500).json({ error: '세금계산서 조회 실패' });
+    }
+  });
+
+  app.get("/api/advertisers/:advertiserId/tax-invoices", async (req, res) => {
+    try {
+      const invoices = await taxInvoicesTable.getTaxInvoicesByAdvertiserId(req.params.advertiserId);
+      res.json(invoices);
+    } catch (error) {
+      console.error('Error fetching advertiser tax invoices:', error);
+      res.status(500).json({ error: '광고주 세금계산서 조회 실패' });
+    }
+  });
+
+  app.post("/api/tax-invoices", requireAuth, async (req, res) => {
+    try {
+      const {
+        advertiserId,
+        invoiceType,
+        taxType,
+        writeDate,
+        items,
+        issuerInfo,
+        recipientInfo,
+        remark
+      } = req.body;
+
+      if (!advertiserId || !invoiceType || !taxType || !writeDate || !items || !issuerInfo || !recipientInfo) {
+        return res.status(400).json({ error: '필수 필드가 누락되었습니다' });
+      }
+
+      const mgtKey = `INV${Date.now()}`;
+
+      const parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
+      const parsedIssuer = typeof issuerInfo === 'string' ? JSON.parse(issuerInfo) : issuerInfo;
+      const parsedRecipient = typeof recipientInfo === 'string' ? JSON.parse(recipientInfo) : recipientInfo;
+
+      const supplyPriceTotal = parsedItems.reduce((sum: number, item: any) => sum + item.supplyPrice, 0);
+      const taxTotal = parsedItems.reduce((sum: number, item: any) => sum + item.tax, 0);
+      const totalAmount = supplyPriceTotal + taxTotal;
+
+      const invoiceData: TaxInvoiceData = {
+        mgtKey,
+        invoiceType: invoiceType === '세금계산서' ? '01' : invoiceType === '수정세금계산서' ? '02' : invoiceType === '계산서' ? '03' : '04',
+        taxType: taxType === '과세' ? '01' : taxType === '영세' ? '02' : '03',
+        writeDate: writeDate.replace(/-/g, ''),
+        taxTotal,
+        supplyPriceTotal,
+        totalAmount,
+        remark1: remark,
+        invoicer: parsedIssuer,
+        invoicee: parsedRecipient,
+        items: parsedItems,
+      };
+
+      const taxInvoice = await taxInvoicesTable.createTaxInvoice({
+        mgtKey,
+        advertiserId,
+        invoiceType,
+        taxType,
+        writeDate,
+        supplyPriceTotal,
+        taxTotal,
+        totalAmount,
+        status: '작성중',
+        items: JSON.stringify(parsedItems),
+        issuerInfo: JSON.stringify(parsedIssuer),
+        recipientInfo: JSON.stringify(parsedRecipient),
+        remark,
+      });
+
+      try {
+        const barobillClient = getBarobillClient();
+        const result = await barobillClient.issueTaxInvoice(invoiceData);
+
+        if (result.result === 0) {
+          await taxInvoicesTable.updateTaxInvoice(taxInvoice.id, {
+            status: '발행완료',
+            ntsConfirmNum: result.ntsConfirmNum,
+          });
+
+          const printUrl = await barobillClient.getTaxInvoicePrintURL(mgtKey);
+          await taxInvoicesTable.updateTaxInvoice(taxInvoice.id, {
+            printUrl,
+          });
+
+          res.json({ 
+            success: true, 
+            message: '세금계산서가 발행되었습니다',
+            invoice: taxInvoice,
+            ntsConfirmNum: result.ntsConfirmNum,
+            printUrl
+          });
+        } else {
+          await taxInvoicesTable.updateTaxInvoice(taxInvoice.id, {
+            status: '발행실패',
+            errorMessage: result.resultMessage,
+          });
+          res.status(400).json({ 
+            error: '세금계산서 발행 실패',
+            message: result.resultMessage
+          });
+        }
+      } catch (barobillError: any) {
+        await taxInvoicesTable.updateTaxInvoice(taxInvoice.id, {
+          status: '발행실패',
+          errorMessage: barobillError.message,
+        });
+        throw barobillError;
+      }
+    } catch (error: any) {
+      console.error('Error creating tax invoice:', error);
+      res.status(500).json({ 
+        error: '세금계산서 생성 실패',
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/tax-invoices/:id/status", async (req, res) => {
+    try {
+      const invoice = await taxInvoicesTable.getTaxInvoiceById(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ error: '세금계산서를 찾을 수 없습니다' });
+      }
+
+      const barobillClient = getBarobillClient();
+      const status = await barobillClient.getTaxInvoiceStatus(invoice.fields.mgtKey);
+
+      res.json(status);
+    } catch (error: any) {
+      console.error('Error fetching tax invoice status:', error);
+      res.status(500).json({ 
+        error: '세금계산서 상태 조회 실패',
+        message: error.message 
+      });
+    }
+  });
+
+  app.post("/api/barobill/check-business", requireAuth, async (req, res) => {
+    try {
+      const { corpNum } = req.body;
+
+      if (!corpNum) {
+        return res.status(400).json({ error: '사업자번호가 필요합니다' });
+      }
+
+      const barobillClient = getBarobillClient();
+      const result = await barobillClient.checkBusinessStatus(corpNum);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error checking business status:', error);
+      res.status(500).json({ 
+        error: '사업자 상태 조회 실패',
+        message: error.message 
       });
     }
   });
