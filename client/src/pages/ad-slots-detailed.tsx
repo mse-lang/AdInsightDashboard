@@ -21,7 +21,6 @@ import {
 import { Plus, Upload, Calendar, FileImage, Edit, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdSlotCard } from "@/components/ad-slot-card";
-import { EditAdvertiserDialog } from "@/components/edit-advertiser-dialog";
 import { SelectAdvertiserDialog, type AdvertiserInfo } from "@/components/select-advertiser-dialog";
 import {
   Select,
@@ -68,8 +67,6 @@ export default function AdSlotsDetailed() {
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<AdMaterial | null>(null);
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
-  const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<number | null>(null);
-  const [isAdvertiserDialogOpen, setIsAdvertiserDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<AdStatus | null>(null);
   
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -246,8 +243,8 @@ export default function AdSlotsDetailed() {
   };
 
   const handleAdvertiserClick = (advertiserId: string) => {
-    setSelectedAdvertiserId(parseInt(advertiserId));
-    setIsAdvertiserDialogOpen(true);
+    // Navigate to advertiser page instead of opening dialog
+    setLocation(`/advertisers/${advertiserId}`);
   };
 
   const handleOpenUploadDialog = () => {
@@ -614,12 +611,6 @@ export default function AdSlotsDetailed() {
           )}
         </DialogContent>
       </Dialog>
-
-      <EditAdvertiserDialog
-        open={isAdvertiserDialogOpen}
-        onOpenChange={setIsAdvertiserDialogOpen}
-        advertiserId={selectedAdvertiserId}
-      />
 
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogContent className="max-w-2xl" data-testid="dialog-upload-material">
