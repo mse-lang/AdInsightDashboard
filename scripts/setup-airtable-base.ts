@@ -146,7 +146,15 @@ const TABLES: TableConfig[] = [
           ]
         }
       },
-      { name: 'Sent At', type: 'dateTime' },
+      { 
+        name: 'Sent At', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' },
+          timeFormat: { name: '24hour' },
+          timeZone: 'Asia/Seoul'
+        }
+      },
       { name: 'External ID', type: 'singleLineText' },
       { name: 'Attachments', type: 'multipleAttachments' },
     ]
@@ -189,8 +197,20 @@ const TABLES: TableConfig[] = [
     description: 'Campaign scheduling and tracking',
     fields: [
       { name: 'Campaign Name', type: 'singleLineText' },
-      { name: 'Start Date', type: 'date' },
-      { name: 'End Date', type: 'date' },
+      { 
+        name: 'Start Date', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
+      { 
+        name: 'End Date', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
       { 
         name: 'Status', 
         type: 'singleSelect',
@@ -265,7 +285,15 @@ const TABLES: TableConfig[] = [
         }
       },
       { name: 'PDF URL', type: 'url' },
-      { name: 'Sent At', type: 'dateTime' },
+      { 
+        name: 'Sent At', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' },
+          timeFormat: { name: '24hour' },
+          timeZone: 'Asia/Seoul'
+        }
+      },
     ]
   },
   {
@@ -295,9 +323,27 @@ const TABLES: TableConfig[] = [
           ]
         }
       },
-      { name: 'Issue Date', type: 'date' },
-      { name: 'Due Date', type: 'date' },
-      { name: 'Payment Date', type: 'date' },
+      { 
+        name: 'Issue Date', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
+      { 
+        name: 'Due Date', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
+      { 
+        name: 'Payment Date', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
       { name: 'Notes', type: 'multilineText' },
     ]
   },
@@ -306,8 +352,20 @@ const TABLES: TableConfig[] = [
     description: 'Performance data and report files',
     fields: [
       { name: 'Report Name', type: 'singleLineText' },
-      { name: 'Period Start', type: 'date' },
-      { name: 'Period End', type: 'date' },
+      { 
+        name: 'Period Start', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
+      { 
+        name: 'Period End', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' }
+        }
+      },
       { name: 'Impressions', type: 'number', options: { precision: 0 } },
       { name: 'Clicks', type: 'number', options: { precision: 0 } },
       { name: 'Conversions', type: 'number', options: { precision: 0 } },
@@ -323,7 +381,15 @@ const TABLES: TableConfig[] = [
           ]
         }
       },
-      { name: 'Sent At', type: 'dateTime' },
+      { 
+        name: 'Sent At', 
+        type: 'date',
+        options: {
+          dateFormat: { name: 'iso' },
+          timeFormat: { name: '24hour' },
+          timeZone: 'Asia/Seoul'
+        }
+      },
     ]
   },
   {
