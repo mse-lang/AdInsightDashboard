@@ -12,6 +12,9 @@ declare module 'express-session' {
   interface SessionData {
     userId: number;
     email: string;
+    // For Airtable-based auth
+    userRecordId?: string;
+    userRole?: 'Admin' | 'User' | 'ReadOnly';
   }
 }
 
@@ -46,6 +49,11 @@ export function getSession() {
 export async function setupAuth(app: Express) {
   app.set('trust proxy', 1);
   app.use(getSession());
+  
+  // Import and initialize Passport for Google OAuth
+  const { passport } = await import('./auth-google');
+  app.use(passport.initialize());
+  app.use(passport.session());
 }
 
 function generateToken(): string {

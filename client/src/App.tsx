@@ -8,12 +8,9 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
-// import { useAuth } from "./hooks/useAuth"; // 인증 기능 비활성화
-// import { useToast } from "./hooks/use-toast";
-// import { Button } from "./components/ui/button";
-// import { LogOut } from "lucide-react";
-// import { useMutation } from "@tanstack/react-query";
-// import { apiRequest } from "./lib/queryClient";
+import { useAuth } from "./hooks/useAuth";
+import { Button } from "./components/ui/button";
+import { LogOut } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Advertisers from "@/pages/advertisers";
@@ -26,31 +23,44 @@ import Quotes from "@/pages/quotes";
 import Materials from "@/pages/materials";
 import Settings from "@/pages/settings";
 import Analytics from "@/pages/analytics";
-// import Login from "@/pages/login"; // 인증 기능 비활성화
-// import Verify from "@/pages/verify"; // 인증 기능 비활성화
+import Login from "@/pages/login";
 
-// 인증 기능 비활성화 - PublicRouter 제거됨
-// function PublicRouter() {
-//   return (
-//     <Switch>
-//       <Route path="/login" component={Login} />
-//       <Route path="/verify" component={Verify} />
-//       <Route path="/" component={Login} />
-//       <Route component={Login} />
-//     </Switch>
-//   );
-// }
+function PublicRouter() {
+  return (
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/" component={Login} />
+      <Route component={Login} />
+    </Switch>
+  );
+}
 
 function MainRouter() {
   useAnalytics();
+  const { user, logout, isDevMode } = useAuth();
 
   return (
     <>
       <header className="flex items-center justify-between p-4 border-b bg-background">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
         <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">벤처스퀘어 광고 관리</span>
-          {/* 인증 기능 비활성화 - 로그아웃 버튼 제거됨 */}
+          {isDevMode && (
+            <div className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100 px-2 py-1 rounded">
+              Dev Mode
+            </div>
+          )}
+          <span className="text-sm text-muted-foreground">
+            {user?.name || user?.email || '벤처스퀘어 광고 관리'}
+          </span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={logout}
+            data-testid="button-logout"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            로그아웃
+          </Button>
         </div>
       </header>
       <main className="flex-1 overflow-auto p-6 bg-background">
@@ -98,7 +108,26 @@ function App() {
 }
 
 function AppContent({ style }: { style: React.CSSProperties }) {
-  // 인증 기능 비활성화 - 바로 대시보드로 진입
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="text-lg font-semibold">Loading...</div>
+          <div className="text-sm text-muted-foreground mt-2">잠시만 기다려주세요</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <PublicRouter />;
+  }
+
+  // Show main app if authenticated
   return (
     <SidebarProvider style={style}>
       <div className="flex h-screen w-full">

@@ -5,14 +5,129 @@ import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQu
 import { setupAuth, isAuthenticated, isAdminEmail, createAuthToken, verifyAuthToken, sendMagicLink } from "./auth";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
+import { passport, GOOGLE_AUTH_ENABLED } from "./auth-google";
+import type { UserRecord } from "./airtable/tables/users";
+import { isAdmin, canEdit, createUser } from "./airtable/tables/users";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // 인증 기능 비활성화 - 주석 처리됨
-  // await setupAuth(app);
+// Middleware for Airtable-based authentication
+const requireAuth = (req: any, res: any, next: any) => {
+  // Development mode: auto-populate user if not authenticated
+  if (!GOOGLE_AUTH_ENABLED && !req.user) {
+    // Return 401 in development to allow frontend to trigger dev login
+    return res.status(401).json({ error: 'Authentication required', devMode: true });
+  }
+  
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+};
 
-  // 인증 라우트 전체 비활성화됨
+const requireAdmin = (req: any, res: any, next: any) => {
+  if (!req.user || !isAdmin(req.user as UserRecord)) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Google OAuth 인증 활성화
+  await setupAuth(app);
+
+  // Development mode: auto-login endpoint
+  if (!GOOGLE_AUTH_ENABLED) {
+    app.post('/api/auth/dev-login', async (req, res) => {
+      try {
+        // Create or get development user
+        const devUser = await createUser({
+          name: 'Dev User',
+          email: 'dev@venturesquare.net',
+          googleUid: 'dev-user-123',
+        });
+
+        // Manually set user in session
+        req.login(devUser, (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Login failed' });
+          }
+          res.json({
+            id: devUser.id,
+            name: devUser.fields['Name'],
+            email: devUser.fields['Email'],
+            role: devUser.fields['Role'],
+            status: devUser.fields['Status'],
+          });
+        });
+      } catch (error) {
+        console.error('Dev login error:', error);
+        res.status(500).json({ error: 'Dev login failed' });
+      }
+    });
+  }
+
+  // Google OAuth routes (only if OAuth is configured)
+  if (GOOGLE_AUTH_ENABLED) {
+    app.get('/api/auth/google', passport.authenticate('google', {
+      accessType: 'offline',
+      prompt: 'consent',
+    }));
+
+    app.get('/api/auth/google/callback',
+      passport.authenticate('google', { failureRedirect: '/login' }),
+      (req, res) => {
+        // Successful authentication, redirect to dashboard
+        res.redirect('/');
+      }
+    );
+  }
+
+  // Get current user (no requireAuth - handle manually for dev mode)
+  app.get('/api/auth/user', (req, res) => {
+    // Development mode: return devMode flag if not authenticated
+    if (!GOOGLE_AUTH_ENABLED && !req.user) {
+      return res.json({ user: null, devMode: true });
+    }
+
+    // Production mode: check authentication
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        user: null,
+        devMode: false
+      });
+    }
+
+    const user = req.user as UserRecord;
+    res.json({
+      user: {
+        id: user.id,
+        name: user.fields['Name'],
+        email: user.fields['Email'],
+        role: user.fields['Role'],
+        status: user.fields['Status'],
+      },
+      devMode: !GOOGLE_AUTH_ENABLED,
+    });
+  });
+
+  // Logout (Passport 0.7 requires req.logOut with capital O)
+  app.post('/api/auth/logout', (req, res) => {
+    req.logOut((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ error: 'Session destruction failed' });
+        }
+        res.json({ success: true });
+      });
+    });
+  });
+
+  // 이전 이메일 기반 인증 라우트는 비활성화됨
   /*
   // Public auth routes
   app.post("/api/auth/request-link", async (req, res) => {
