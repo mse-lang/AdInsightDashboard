@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { AirtableQuote } from "@/types/airtable";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import type { AirtableQuote, AirtableAdvertiser } from "@/types/airtable";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -26,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, Filter, FileText, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Eye, Search, Filter, FileText, CheckCircle, Clock, XCircle, Plus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
@@ -39,9 +41,32 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export default function QuotesAirtable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { toast } = useToast();
 
   const { data: quotes = [], isLoading } = useQuery<AirtableQuote[]>({
     queryKey: ["/api/quotes"],
+  });
+
+  const { data: advertisers = [] } = useQuery<AirtableAdvertiser[]>({
+    queryKey: ["/api/advertisers"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/quotes/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: "견적서 삭제 완료",
+        description: "견적서가 삭제되었습니다.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "견적서 삭제 실패",
+        description: error.message || "견적서 삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Filter quotes
@@ -171,6 +196,10 @@ export default function QuotesAirtable() {
                   <SelectItem value="Rejected">거절</SelectItem>
                 </SelectContent>
               </Select>
+              <Button data-testid="button-add-quote">
+                <Plus className="h-4 w-4 mr-2" />
+                견적서 생성
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -234,14 +263,30 @@ export default function QuotesAirtable() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          data-testid={`button-view-${quote.id}`}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          상세보기
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`button-view-${quote.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`button-edit-${quote.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteMutation.mutate(quote.id)}
+                            data-testid={`button-delete-${quote.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Receipt, Search, Filter } from "lucide-react";
+import { Receipt, Search, Filter, Plus, Edit, Trash2 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { AirtableInvoice } from "@/types/airtable";
@@ -127,6 +127,10 @@ export default function Invoices() {
                   <SelectItem value="Overdue">연체</SelectItem>
                 </SelectContent>
               </Select>
+              <Button data-testid="button-add-invoice">
+                <Plus className="h-4 w-4 mr-2" />
+                인보이스 추가
+              </Button>
             </div>
           </div>
         </CardHeader>
