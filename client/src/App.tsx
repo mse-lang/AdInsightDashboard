@@ -24,6 +24,7 @@ import Quotes from "@/pages/quotes";
 import QuotesAirtable from "@/pages/quotes-airtable";
 import Invoices from "@/pages/invoices";
 import Campaigns from "@/pages/campaigns";
+import Agencies from "@/pages/agencies";
 import AdCalendar from "@/pages/calendar";
 import Materials from "@/pages/materials";
 import Settings from "@/pages/settings";
@@ -82,6 +83,7 @@ function MainRouter() {
           <Route path="/quotes" component={Quotes} />
           <Route path="/invoices" component={Invoices} />
           <Route path="/campaigns" component={Campaigns} />
+          <Route path="/agencies" component={Agencies} />
           <Route path="/calendar" component={AdCalendar} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/materials" component={Materials} />

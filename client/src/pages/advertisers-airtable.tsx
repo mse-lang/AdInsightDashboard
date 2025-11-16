@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { AirtableAdvertiser } from "@/types/airtable";
+import type { AirtableAdvertiser, AirtableAgency } from "@/types/airtable";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -75,7 +75,12 @@ const statusLabels = {
 const advertiserSchema = z.object({
   companyName: z.string().min(1, "회사명을 입력하세요"),
   businessNumber: z.string().optional(),
+  businessRegistrationNumber: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  adMaterials: z.string().optional(),
   contactPerson: z.string().min(1, "담당자명을 입력하세요"),
+  contactPersonType: z.enum(["Advertiser", "Agency"]),
+  agencyId: z.string().optional(),
   email: z.string().email("올바른 이메일을 입력하세요"),
   phone: z.string().min(1, "전화번호를 입력하세요"),
   industry: z.string().optional(),
@@ -99,12 +104,21 @@ export default function AdvertisersAirtable() {
     queryKey: ["/api/advertisers"],
   });
 
+  const { data: agencies = [] } = useQuery<AirtableAgency[]>({
+    queryKey: ["/api/agencies"],
+  });
+
   const form = useForm<AdvertiserFormData>({
     resolver: zodResolver(advertiserSchema),
     defaultValues: {
       companyName: "",
       businessNumber: "",
+      businessRegistrationNumber: "",
+      bankAccountNumber: "",
+      adMaterials: "",
       contactPerson: "",
+      contactPersonType: "Advertiser",
+      agencyId: "",
       email: "",
       phone: "",
       industry: "",
@@ -180,7 +194,12 @@ export default function AdvertisersAirtable() {
     form.reset({
       companyName: "",
       businessNumber: "",
+      businessRegistrationNumber: "",
+      bankAccountNumber: "",
+      adMaterials: "",
       contactPerson: "",
+      contactPersonType: "Advertiser",
+      agencyId: "",
       email: "",
       phone: "",
       industry: "",
@@ -194,7 +213,12 @@ export default function AdvertisersAirtable() {
     form.reset({
       companyName: advertiser.companyName,
       businessNumber: advertiser.businessNumber || "",
+      businessRegistrationNumber: advertiser.businessRegistrationNumber || "",
+      bankAccountNumber: advertiser.bankAccountNumber || "",
+      adMaterials: advertiser.adMaterials || "",
       contactPerson: advertiser.contactPerson,
+      contactPersonType: advertiser.contactPersonType,
+      agencyId: advertiser.agencyId || "",
       email: advertiser.email,
       phone: advertiser.phone,
       industry: advertiser.industry || "",
@@ -518,11 +542,11 @@ export default function AdvertisersAirtable() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>회사명</TableHead>
+                    <TableHead>광고주</TableHead>
                     <TableHead>담당자</TableHead>
                     <TableHead>이메일</TableHead>
                     <TableHead>전화번호</TableHead>
-                    <TableHead>업종</TableHead>
+                    <TableHead>캠페인</TableHead>
                     <TableHead>상태</TableHead>
                     <TableHead className="text-right">작업</TableHead>
                   </TableRow>
@@ -531,12 +555,37 @@ export default function AdvertisersAirtable() {
                   {filteredAdvertisers.map((advertiser) => (
                     <TableRow key={advertiser.id} data-testid={`row-advertiser-${advertiser.id}`}>
                       <TableCell className="font-medium">
-                        {advertiser.companyName}
+                        <div data-testid={`text-company-name-${advertiser.id}`}>{advertiser.companyName}</div>
+                        {advertiser.industry && (
+                          <div className="text-xs text-muted-foreground mt-1" data-testid={`text-industry-${advertiser.id}`}>{advertiser.industry}</div>
+                        )}
                       </TableCell>
-                      <TableCell>{advertiser.contactPerson}</TableCell>
-                      <TableCell className="text-sm">{advertiser.email}</TableCell>
-                      <TableCell>{advertiser.phone}</TableCell>
-                      <TableCell>{advertiser.industry || "-"}</TableCell>
+                      <TableCell>
+                        <div data-testid={`text-contact-person-${advertiser.id}`}>{advertiser.contactPerson}</div>
+                        <div className="flex gap-1 mt-1">
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs"
+                            data-testid={`badge-contact-type-${advertiser.id}`}
+                          >
+                            {advertiser.contactPersonType === 'Agency' ? '에이전시' : '광고주'}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm" data-testid={`text-email-${advertiser.id}`}>{advertiser.email}</TableCell>
+                      <TableCell data-testid={`text-phone-${advertiser.id}`}>{advertiser.phone}</TableCell>
+                      <TableCell>
+                        {advertiser.campaigns && advertiser.campaigns.length > 0 ? (
+                          <Badge 
+                            variant="secondary"
+                            data-testid={`badge-campaigns-${advertiser.id}`}
+                          >
+                            {advertiser.campaigns.length}개
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm" data-testid={`text-no-campaigns-${advertiser.id}`}>-</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           className={statusColors[advertiser.status]}
@@ -666,6 +715,96 @@ export default function AdvertisersAirtable() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="businessRegistrationNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>사업자등록번호</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-business-registration-number" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bankAccountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>통장 번호</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-bank-account-number" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="adMaterials"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>광고 소재/서비스/제품명</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="예: 배너 광고, 뉴스레터 광고, 네이티브 광고" data-testid="input-ad-materials" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="contactPersonType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>담당자 소속 *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-contact-person-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Advertiser">광고주</SelectItem>
+                          <SelectItem value="Agency">에이전시</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {form.watch("contactPersonType") === "Agency" && (
+                  <FormField
+                    control={form.control}
+                    name="agencyId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>에이전시 선택</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-agency">
+                              <SelectValue placeholder="에이전시 선택" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {agencies.map((agency) => (
+                              <SelectItem key={agency.id} value={agency.id}>
+                                {agency.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
