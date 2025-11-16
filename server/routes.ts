@@ -2601,6 +2601,203 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/inquiries/stats", async (req, res) => {
+    try {
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const [gmailEmails, surveyResponses] = await Promise.all([
+        gmailService.getAdInquiryEmails(100).catch(() => []),
+        googleSheetsService.getSurveyResponses(100).catch(() => [])
+      ]);
+
+      const filterByDate = (items: any[], dateField: string, cutoffDate: Date) => {
+        return items.filter(item => {
+          const itemDate = dateField === 'internalDate' 
+            ? new Date(parseInt(item[dateField]))
+            : new Date(item[dateField]);
+          return itemDate >= cutoffDate;
+        });
+      };
+
+      const gmailStats = {
+        total: gmailEmails.length,
+        lastWeek: filterByDate(gmailEmails, 'internalDate', oneWeekAgo).length,
+        lastMonth: filterByDate(gmailEmails, 'internalDate', oneMonthAgo).length
+      };
+
+      const surveyStats = {
+        total: surveyResponses.length,
+        lastWeek: filterByDate(surveyResponses, 'timestamp', oneWeekAgo).length,
+        lastMonth: filterByDate(surveyResponses, 'timestamp', oneMonthAgo).length
+      };
+
+      const totalStats = {
+        total: gmailStats.total + surveyStats.total,
+        lastWeek: gmailStats.lastWeek + surveyStats.lastWeek,
+        lastMonth: gmailStats.lastMonth + surveyStats.lastMonth
+      };
+
+      res.json({
+        success: true,
+        total: totalStats,
+        gmail: gmailStats,
+        survey: surveyStats
+      });
+    } catch (error) {
+      console.error('Error fetching inquiry stats:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({
+        error: 'Failed to fetch inquiry stats',
+        details: errorMessage
+      });
+    }
+  });
+
+  app.get("/api/dashboard/metrics", async (req, res) => {
+    try {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const lastYear = currentYear - 1;
+      
+      const yearStart = new Date(currentYear, 0, 1);
+      const lastYearStart = new Date(lastYear, 0, 1);
+      const lastYearEnd = new Date(lastYear, 11, 31, 23, 59, 59);
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      const [campaigns, invoices] = await Promise.all([
+        campaignsTable.getAllCampaigns(),
+        invoicesTable.getAllInvoices()
+      ]);
+
+      const filterCampaignsByDate = (records: any[], startDate: Date, endDate?: Date) => {
+        return records.filter(r => {
+          const created = r.fields['Created'] ? new Date(r.fields['Created']) : null;
+          if (!created) return false;
+          if (endDate) {
+            return created >= startDate && created <= endDate;
+          }
+          return created >= startDate;
+        });
+      };
+
+      const filterInvoicesByIssueDate = (records: any[], startDate: Date, endDate?: Date) => {
+        return records.filter(r => {
+          const issueDate = r.fields['Issue Date'] ? new Date(r.fields['Issue Date']) : null;
+          if (!issueDate) return false;
+          if (endDate) {
+            return issueDate >= startDate && issueDate <= endDate;
+          }
+          return issueDate >= startDate;
+        });
+      };
+
+      const sumInvoiceAmounts = (records: any[]) => {
+        return records.reduce((sum, r) => sum + (r.fields['Amount'] || 0), 0);
+      };
+
+      const campaignsThisYear = filterCampaignsByDate(campaigns, yearStart);
+      const campaignsLastYear = filterCampaignsByDate(campaigns, lastYearStart, lastYearEnd);
+      const campaignsLastMonth = filterCampaignsByDate(campaigns, oneMonthAgo);
+
+      const newInquiryCampaigns = campaigns.filter(c => {
+        const status = c.fields['Pipeline Status'];
+        return ['문의중', '견적제시', '일정조율중'].includes(status);
+      });
+
+      const activeCampaigns = campaigns.filter(c => {
+        const status = c.fields['Pipeline Status'];
+        return ['부킹확정', '집행중', '결과보고'].includes(status);
+      });
+
+      const invoicesThisYear = filterInvoicesByIssueDate(invoices, yearStart);
+      const invoicesLastYear = filterInvoicesByIssueDate(invoices, lastYearStart, lastYearEnd);
+      const invoicesLastMonth = filterInvoicesByIssueDate(invoices, oneMonthAgo);
+
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthInvoices = filterInvoicesByIssueDate(invoices, currentMonthStart);
+
+      const monthsPassedThisYear = now.getMonth() + 1;
+      const monthsPassedLastYear = 12;
+
+      const metrics = {
+        newInquiries: {
+          thisYear: newInquiryCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= yearStart;
+          }).length,
+          lastYearMonthlyAvg: Math.round(campaignsLastYear.length / monthsPassedLastYear),
+          thisYearMonthlyAvg: Math.round(campaignsThisYear.length / monthsPassedThisYear),
+          lastMonth: newInquiryCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= oneMonthAgo;
+          }).length
+        },
+        activeAds: {
+          thisYear: activeCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= yearStart;
+          }).length,
+          lastYearMonthlyAvg: Math.round(
+            campaigns.filter(c => {
+              const status = c.fields['Pipeline Status'];
+              const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+              return ['부킹확정', '집행중', '결과보고'].includes(status) &&
+                     created && created >= lastYearStart && created <= lastYearEnd;
+            }).length / monthsPassedLastYear
+          ),
+          thisYearMonthlyAvg: Math.round(activeCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= yearStart;
+          }).length / monthsPassedThisYear),
+          lastMonth: activeCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= oneMonthAgo;
+          }).length
+        },
+        revenue: {
+          thisYear: sumInvoiceAmounts(invoicesThisYear),
+          lastYearMonthlyAvg: Math.round(sumInvoiceAmounts(invoicesLastYear) / monthsPassedLastYear),
+          thisYearMonthlyAvg: Math.round(sumInvoiceAmounts(invoicesThisYear) / monthsPassedThisYear),
+          lastMonth: sumInvoiceAmounts(invoicesLastMonth),
+          currentMonth: sumInvoiceAmounts(currentMonthInvoices)
+        },
+        progress: {
+          thisYear: activeCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= yearStart;
+          }).length,
+          lastYearMonthlyAvg: Math.round(
+            campaigns.filter(c => {
+              const status = c.fields['Pipeline Status'];
+              const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+              return ['부킹확정', '집행중', '결과보고'].includes(status) &&
+                     created && created >= lastYearStart && created <= lastYearEnd;
+            }).length / monthsPassedLastYear
+          ),
+          thisYearMonthlyAvg: Math.round(activeCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= yearStart;
+          }).length / monthsPassedThisYear),
+          lastMonth: activeCampaigns.filter(c => {
+            const created = c.fields['Created'] ? new Date(c.fields['Created']) : null;
+            return created && created >= oneMonthAgo;
+          }).length
+        }
+      };
+
+      res.json({ success: true, metrics });
+    } catch (error) {
+      console.error('Error fetching dashboard metrics:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({
+        error: 'Failed to fetch dashboard metrics',
+        details: errorMessage
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

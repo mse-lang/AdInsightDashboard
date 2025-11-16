@@ -4,9 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, FileText, Clock, Building, Phone, User, ExternalLink } from "lucide-react";
+import { Mail, FileText, Clock, Building, Phone, User, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+
+interface InquiryStats {
+  total: number;
+  lastWeek: number;
+  lastMonth: number;
+}
 
 interface GmailMessage {
   id: string;
@@ -54,8 +60,22 @@ export default function Inquiries() {
     queryKey: ["/api/inquiries/survey"],
   });
 
+  const { data: statsData, isLoading: statsLoading } = useQuery<{
+    success: boolean;
+    total: InquiryStats;
+    gmail: InquiryStats;
+    survey: InquiryStats;
+  }>({
+    queryKey: ["/api/inquiries/stats"],
+  });
+
   const emails = gmailData?.emails || [];
   const surveyResponses = surveyData?.responses || [];
+  const stats = statsData || {
+    total: { total: 0, lastWeek: 0, lastMonth: 0 },
+    gmail: { total: 0, lastWeek: 0, lastMonth: 0 },
+    survey: { total: 0, lastWeek: 0, lastMonth: 0 }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -67,35 +87,81 @@ export default function Inquiries() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card data-testid="card-total-inquiries">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">총 문의</p>
               <Mail className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-2xl font-bold">
-              {emails.length + surveyResponses.length}
+            <div className="text-2xl font-bold mb-2" data-testid="text-total-count">
+              {statsLoading ? "-" : stats.total.total}
+            </div>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span>최근 1주일</span>
+                <span className="font-medium" data-testid="text-total-week">
+                  {statsLoading ? "-" : stats.total.lastWeek}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>최근 한 달</span>
+                <span className="font-medium" data-testid="text-total-month">
+                  {statsLoading ? "-" : stats.total.lastMonth}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="card-email-inquiries">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">이메일 문의</p>
               <Mail className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-2xl font-bold">{emails.length}</div>
+            <div className="text-2xl font-bold mb-2" data-testid="text-email-count">
+              {statsLoading ? "-" : stats.gmail.total}
+            </div>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span>최근 1주일</span>
+                <span className="font-medium" data-testid="text-email-week">
+                  {statsLoading ? "-" : stats.gmail.lastWeek}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>최근 한 달</span>
+                <span className="font-medium" data-testid="text-email-month">
+                  {statsLoading ? "-" : stats.gmail.lastMonth}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="card-survey-responses">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">설문 응답</p>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-2xl font-bold">{surveyResponses.length}</div>
+            <div className="text-2xl font-bold mb-2" data-testid="text-survey-count">
+              {statsLoading ? "-" : stats.survey.total}
+            </div>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span>최근 1주일</span>
+                <span className="font-medium" data-testid="text-survey-week">
+                  {statsLoading ? "-" : stats.survey.lastWeek}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>최근 한 달</span>
+                <span className="font-medium" data-testid="text-survey-month">
+                  {statsLoading ? "-" : stats.survey.lastMonth}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
