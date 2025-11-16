@@ -85,7 +85,7 @@ export async function createUser(data: {
   }
 
   // Determine role based on email
-  const adminEmails = ['mse@venturesquare.net', 'rosie@venturesquare.net'];
+  const adminEmails = ['mse@venturesquare.net', 'rosie@venturesquare.net', 'mj@venturesquare.net'];
   const defaultRole = adminEmails.includes(data.email.toLowerCase()) ? 'Admin' : 'User';
 
   try {
