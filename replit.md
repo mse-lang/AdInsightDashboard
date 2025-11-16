@@ -2,275 +2,67 @@
 
 ## Overview
 
-VS-AMS is a comprehensive advertising management system for Venture Square media company. The system streamlines the entire advertising sales lifecycle from initial inquiry through campaign execution, performance tracking, invoicing, and payment management.
+VS-AMS is a comprehensive advertising management system for Venture Square, designed to manage the entire advertising sales lifecycle. It covers initial inquiry through campaign execution, performance tracking, invoicing, and payment management. The project is currently migrating to an Airtable-based architecture.
 
-**Project Status**: Migration to Airtable-based architecture in progress (Started: 2025-11-16)
-
-**Key Features**:
-- Google OAuth authentication with role-based access control
-- Airtable as primary data store with PostgreSQL for session management
-- Multi-channel communication (Solapi: Email/SMS/KakaoTalk)
-- Campaign and creative asset management
-- Automated quote generation and invoice tracking
-- Google Calendar, Gmail, and GA4 integration
-- Performance analytics and automated reporting
+**Key Capabilities**:
+- Google OAuth authentication with role-based access control.
+- Airtable as the primary data store with PostgreSQL for session management.
+- Multi-channel communication via Solapi (Email/SMS/KakaoTalk).
+- Campaign and creative asset management.
+- Automated quote generation and invoice tracking.
+- Integration with Google Calendar, Gmail, and GA4.
+- Performance analytics and automated reporting.
+- Management of advertiser-agency relationships and integrated advertising inquiries.
+- Stibee API v2 integration for newsletter analytics.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Project Migration Plan
-
-**Migration Approach**: Incremental transformation of existing React + Express application to Airtable-based architecture while maintaining current tech stack.
-
-**Phase 1 - Foundation** (Weeks 1-2):
-- Airtable base design and API integration
-- Google OAuth authentication system
-- User management with Airtable Users table
-
-**Phase 2 - Core Modules** (Weeks 3-4):
-- Advertiser management (Module 2)
-- Quote and billing (Module 4)
-- Solapi integration for communications
-
-**Phase 3 - Advanced Features** (Weeks 5-6):
-- Campaign and creative management (Module 3)
-- Google Calendar/Gmail integration (Module 5)
-- GA4 analytics and reporting (Module 6)
-
-**Phase 4 - Automation** (Week 7):
-- Background workers (BullMQ/Redis)
-- Automated email/SMS scheduling
-- Performance report generation
-
-## Recent Changes
-
-**2025-11-16**: **Integrated Advertising Inquiries Dashboard Complete** ✅
-- ✅ **Gmail Integration** (Replit Connector):
-  - GET /api/inquiries/gmail - Fetch ad@venturesquare.net emails
-  - Service layer with lazy initialization (graceful degradation)
-  - Returns { success, emails, total } with proper pagination support
-- ✅ **Google Sheets Integration** (Replit Connector):
-  - GET /api/inquiries/survey - Fetch survey responses from Google Forms
-  - Spreadsheet ID: 1UQnH5bGhmZIkQ_-WJil-vsibpjq0pmbophowGjLqhCE
-  - Returns { success, responses, total } with advertiser matching
-- ✅ **Advertiser Matching Logic**:
-  - Automatic matching by email, company name, or phone number
-  - Phone normalization (digits-only comparison)
-  - Null-safe implementation for missing phone numbers
-  - Matched records include: matchedAdvertiserId, matchedAdvertiserName
-- ✅ **Frontend /inquiries Page**:
-  - Statistics cards: Total inquiries, Gmail count, Survey count
-  - Gmail tab: Email list with sender, subject, date, "Gmail에서 보기" button
-  - Survey tab: Response list with company, email, phone, matched advertiser badge
-  - Responsive tabbed UI with proper loading states
-- ✅ **Admin Account Update**:
-  - Added mj@venturesquare.net to admin list
-  - Existing admins: mse@venturesquare.net, rosie@venturesquare.net
-
-**2025-11-16**: **Stibee API v2 Integration Complete** ✅ - Newsletter Analytics
-- ✅ **Backend Stibee API v2 Integration**:
-  - GET /api/analytics/stibee/summary - Overall newsletter statistics with trends
-  - GET /api/analytics/stibee/emails - Email list with pagination support
-  - GET /api/analytics/stibee/emails/:id - Individual email detail with logs
-  - Production-ready error handling with graceful degradation
-  - Demo data fallback when STIBEE_API_KEY not available
-- ✅ **Frontend Analytics Dashboard**:
-  - Summary statistics cards with trend indicators (up/down/neutral)
-  - Email list table with sent/opened/clicked metrics
-  - Email detail modal with comprehensive statistics
-  - CSV export functionality (proper numeric formatting for spreadsheets)
-  - Responsive design with pagination controls
-- ✅ **Data Quality**:
-  - Real Stibee API data confirmed (1 email with 0% open/click rates)
-  - CSV exports numbers as raw values for spreadsheet compatibility
-  - Trend handling: up (green), down (red), neutral (muted)
-
-**2025-11-16**: **Phase 2 Complete** ✅ - Solapi Integration & Dashboard Calendar
-- ✅ **Solapi Multi-Channel Messaging**:
-  - Lazy initialization service layer (no crash when credentials missing)
-  - POST /api/solapi/send-sms with optional Airtable logging
-  - POST /api/solapi/send-kakao with pfId parameter for accurate channel targeting
-  - GET /api/solapi/balance for account balance checking
-  - Sequential bulk SMS sending (SDK-compatible implementation)
-  - Graceful fallback: messages send successfully even if Airtable logging fails
-- ✅ **Dashboard Three-Month Google Calendar**:
-  - Three distinct iframe views using dates=YYYYMMDD/YYYYMMDD parameter
-  - Current month + next 2 months (total 3 months)
-  - mj@venturesquare.net calendar with Asia/Seoul timezone
-  - Responsive grid layout (lg:grid-cols-3)
-  - Accurate month-end date calculation for each iframe
-
-**2025-11-16**: **Phase 2 Module 4 Complete** ✅ - Quote & Billing Module
-- ✅ **Production-ready** Airtable table functions: Quotes, Quote Items, Invoices (full CRUD)
-- ✅ Complete API routes with authentication guards and Airtable credential checks
-- ✅ Fixed critical autoNumber field sorting issue (removed dependencies on Quote Number/Invoice Number)
-- ✅ Comprehensive Zod validation with robust error handling (400/404/500/503 status codes)
-- ✅ Invoice advertiser linkage: Automatically extracts advertiser from Quote relationship
-- ✅ Frontend TypeScript type definitions for all three entities
-- ✅ **Complete CRUD API endpoints**:
-  - Quotes: GET /api/quotes, GET /api/quotes/:id, GET /api/quotes/advertiser/:id, GET /api/quotes/status/:status, POST, PATCH, DELETE, POST /api/quotes/:id/approve
-  - Quote Items: GET /api/quotes/:quoteId/items, **GET /api/quote-items/:id**, POST /api/quote-items, POST /api/quote-items/bulk, PATCH /api/quote-items/:id, DELETE /api/quote-items/:id
-  - Invoices: GET /api/invoices, GET /api/invoices/:id, GET /api/invoices/quote/:id, GET /api/invoices/status/:status, GET /api/invoices/overdue, POST (with auto-advertiser), PATCH, DELETE
-
-**2025-11-16**: **Phase 2 Start** - Advertiser Management API
-- ✅ Communication Logs Airtable table functions (CRUD operations)
-- ✅ Advertiser API routes migrated to Airtable with production-ready error handling
-- ✅ Authentication guards on all mutation endpoints (POST/PATCH/DELETE)
-- ✅ Comprehensive validation with Zod (string trimming, email validation, status enums)
-- ✅ Proper HTTP status codes: 400 (validation), 404 (not found), 500 (server error), 503 (service unavailable)
-- ✅ Airtable credentials checking with graceful degradation
-- ✅ Frontend Airtable type definitions and advertiser list page
-
-**2025-11-16**: **Phase 1 Complete** - Foundation Layer
-- ✅ Airtable integration layer with 12-table type system
-- ✅ Google OAuth authentication with Passport.js
-- ✅ Development mode with in-memory user store (works without Airtable/OAuth credentials)
-- ✅ Automated Airtable base setup script
-- ✅ Session management with PostgreSQL
-- ✅ E2E tested: Dev login → Dashboard → Logout flow verified
-
-**Migration Strategy**:
-- Migrating from PostgreSQL-only to Airtable-primary architecture
-- Preserving React + Express stack for rapid development
-- Graceful fallback: System works in dev mode without any credentials
-
-**Technical Constraints**:
-- autoNumber fields (Quote Number, Invoice Number) cannot be created via Airtable Meta API
-- autoNumber fields must be manually added in Airtable UI or cannot be used for sorting
-- All quote/invoice list queries now sort by creation time instead of auto-generated numbers
-- Currency fields require `symbol` option (e.g., `{ precision: 0, symbol: 'KRW' }`)
-
-**Solapi Configuration**:
-- Required environment variables: SOLAPI_API_KEY, SOLAPI_API_SECRET, SOLAPI_SENDER_PHONE
-- Lazy initialization pattern prevents server crash when credentials are missing
-- KakaoTalk requires both templateId and pfId (channel ID) for accurate delivery
-- Communication logs are stored in Airtable when advertiserId is provided
-- Balance checking available via GET /api/solapi/balance endpoint
-
 ## System Architecture
 
 ### Frontend Architecture
 
-**Framework**: React with TypeScript using Vite as the build tool
-
-**UI Component System**: Shadcn/ui components based on Radix UI primitives with Tailwind CSS for styling. The design system follows Material Design principles adapted for Korean SaaS applications, with specific attention to Korean typography (Pretendard font) and business terminology.
-
-**Routing**: Wouter for client-side routing, providing a lightweight alternative to React Router
-
-**State Management**: 
-- React Query (TanStack Query) for server state management and data fetching
-- React Hook Form with Zod for form state and validation
-- Local component state via React hooks
-
-**Key Design Decisions**:
-- New York style variant of Shadcn/ui for a professional business aesthetic
-- Korean-first UI with status badges and workflows tailored to Korean advertising sales processes
-- Responsive design with mobile breakpoint at 768px
-- Custom CSS variables for theming with light/dark mode support
+**Framework**: React with TypeScript (Vite).
+**UI Component System**: Shadcn/ui (Radix UI primitives) with Tailwind CSS, following Material Design principles adapted for Korean SaaS applications (Pretendard font).
+**Routing**: Wouter.
+**State Management**: React Query for server state, React Hook Form with Zod for form state and validation, React hooks for local component state.
+**Key Design Decisions**: New York style Shadcn/ui, Korean-first UI with specific workflows, responsive design, custom CSS variables for them.
 
 ### Backend Architecture
 
-**Framework**: Express.js with TypeScript running on Node.js
-
-**API Pattern**: RESTful API with JSON responses
-- Standard CRUD operations for resources (advertisers, ad slots, materials, quotes, memos)
-- Conventional HTTP methods (GET, POST, PATCH, DELETE)
-- Error handling with appropriate HTTP status codes
-
-**Data Layer**: Storage abstraction pattern through `IStorage` interface, enabling flexibility in database implementation
-
-**Development Server**: Vite middleware integration for hot module replacement during development
+**Framework**: Express.js with TypeScript (Node.js).
+**API Pattern**: RESTful API with JSON responses, standard CRUD operations, conventional HTTP methods, and appropriate error handling.
+**Data Layer**: Storage abstraction through `IStorage` interface for database flexibility.
 
 ### Data Storage Solutions
 
-**ORM**: Drizzle ORM for type-safe database operations
-
-**Database**: PostgreSQL via Neon serverless driver with WebSocket support
-
-**Schema Design**:
-- `advertisers`: Core entity tracking company information, contact details, status progression, and file uploads (business registration, bank account, logo)
-- `memos`: One-to-many relationship with advertisers for tracking communications and file attachments
-- `adSlots`: Defines available advertising positions with type and configuration
-- `adMaterials`: Links advertisers to specific ad slots with scheduling and file tracking
-- `quotes`: Manages quote generation and tracking
-- `materials`: Stores marketing materials and introduction documents
-- `pricing`: Product pricing configuration
-
-**Key Design Decisions**:
-- Serial IDs for all primary keys
-- Text fields for flexible data like status values (enabling Korean text)
-- Array fields for file attachments
-- Timestamp tracking for creation and updates
-- Zod schema validation derived from Drizzle schemas for type safety across stack
+**ORM**: Drizzle ORM.
+**Database**: PostgreSQL via Neon serverless driver.
+**Schema Design**: Includes `advertisers`, `memos`, `adSlots`, `adMaterials`, `quotes`, `materials`, `pricing`. Employs serial IDs, text fields for flexible data (e.g., status values), array fields for attachments, and timestamp tracking. Zod schema validation is derived from Drizzle schemas.
 
 ### Authentication and Authorization
 
-**Status**: Disabled (as of 2025-10-26)
-
-The application is publicly accessible without authentication. All authentication code has been commented out but preserved in the codebase for potential future use:
-- Email-based magic link authentication (using Resend)
-- Session management with PostgreSQL-backed sessions
-- User table and auth tokens table in database schema
-
-**Note**: The authentication infrastructure remains in the codebase (commented out) and can be re-enabled by:
-1. Uncommenting auth routes in `server/routes.ts`
-2. Uncommenting auth setup in `registerRoutes()`
-3. Restoring auth-related imports and components in `client/src/App.tsx`
-4. Verifying the domain on Resend for email delivery
-
-**Current Access Model**: Open access - anyone with the application URL can use all features without restriction.
-
-### External Dependencies
-
-**UI Components**: 
-- Radix UI primitives (@radix-ui/*) for accessible component foundations
-- Lucide React for iconography
-- Recharts for data visualization (bar charts, pie charts)
-- date-fns for date manipulation and formatting
-- CMDK for command palette functionality
-
-**Development Tools**:
-- Replit-specific plugins for development environment integration
-- ESBuild for production builds
-- Drizzle Kit for database migrations
-
-**Database Connection**:
-- Neon serverless PostgreSQL with WebSocket support via `ws` package
-- Connection pooling through @neondatabase/serverless
-
-**Form Handling**:
-- React Hook Form for form state management
-- Zod for runtime validation
-- @hookform/resolvers for Zod integration
-
-**Styling**:
-- Tailwind CSS with PostCSS
-- Class Variance Authority (CVA) for component variants
-- clsx and tailwind-merge for conditional class management
-
-**Session Management**:
-- connect-pg-simple for PostgreSQL-backed sessions (configured but currently disabled)
-
-**Email Service**:
-- Resend integration for email delivery (configured but currently unused)
-- Magic link authentication system (implemented but disabled)
+**Status**: Currently disabled. The system is publicly accessible. Authentication code (Google OAuth, email-based magic link, PostgreSQL-backed sessions) is preserved and commented out for future re-enablement.
 
 ### Key Architectural Patterns
 
-**Full-Stack TypeScript**: Shared types between client and server via `@shared` directory containing Drizzle schemas
+**Full-Stack TypeScript**: Shared types between client and server via a `@shared` directory.
+**Path Aliases**: Organized aliases for client source files, shared schemas, and static assets.
+**API Request Pattern**: Centralized `apiRequest` function for consistent handling.
+**Query Client Configuration**: Infinite stale time and disabled automatic refetching for manual cache management.
+**Component Organization**: Clear separation of pages, reusable components, UI primitives, and examples.
 
-**Path Aliases**: 
-- `@/*` → client source files
-- `@shared/*` → shared schemas and types
-- `@assets/*` → static assets
+## External Dependencies
 
-**API Request Pattern**: Centralized API request handling through `apiRequest` function with automatic error handling and JSON parsing
-
-**Query Client Configuration**: Infinite stale time and disabled automatic refetching for manual cache management
-
-**Component Organization**: 
-- Pages in `/pages` directory
-- Reusable components in `/components`
-- UI primitives in `/components/ui`
-- Example implementations in `/components/examples`
+**UI Components**: Radix UI primitives, Lucide React, Recharts, date-fns, CMDK.
+**Development Tools**: Replit-specific plugins, ESBuild, Drizzle Kit.
+**Database Connection**: Neon serverless PostgreSQL, `@neondatabase/serverless`.
+**Form Handling**: React Hook Form, Zod, `@hookform/resolvers`.
+**Styling**: Tailwind CSS, PostCSS, Class Variance Authority (CVA), clsx, tailwind-merge.
+**Session Management**: connect-pg-simple (currently disabled).
+**Email Service**: Resend (configured but unused for magic links).
+**Messaging**: Solapi for SMS and KakaoTalk.
+**Primary Data Store**: Airtable.
+**Google Services**: Google OAuth, Google Calendar, Gmail, Google Analytics 4 (GA4).
+**Newsletter Analytics**: Stibee API v2.
