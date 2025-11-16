@@ -20,8 +20,8 @@ const MONTH_NAMES = [
 ];
 
 const statusColors = {
-  "부킹확정": "bg-blue-100 text-blue-700 border-blue-200",
-  "집행중": "bg-green-100 text-green-700 border-green-200",
+  "부킹확정": "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800",
+  "집행중": "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800",
 };
 
 export function NavigableCalendar() {
@@ -29,7 +29,7 @@ export function NavigableCalendar() {
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0-11
 
-  const { data: calendarEvents = [] } = useQuery<CalendarEvent[]>({
+  const { data: calendarEvents = [], isLoading, isError } = useQuery<CalendarEvent[]>({
     queryKey: ["/api/calendar/ad-materials"],
   });
 
@@ -181,39 +181,49 @@ export function NavigableCalendar() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Previous Month List */}
-          <div className="lg:col-span-3">
-            <EventListView
-              title={`${previousMonth.year}년 ${MONTH_NAMES[previousMonth.month]}`}
-              events={previousMonthEvents}
-              emptyMessage="예약 없음"
-            />
+        {isError ? (
+          <div className="text-center py-8 text-muted-foreground" data-testid="calendar-error">
+            <p>캘린더 데이터를 불러오는 중 오류가 발생했습니다.</p>
           </div>
+        ) : isLoading ? (
+          <div className="text-center py-8 text-muted-foreground" data-testid="calendar-loading">
+            <p>캘린더 데이터를 불러오는 중...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Previous Month List */}
+            <div className="lg:col-span-3">
+              <EventListView
+                title={`${previousMonth.year}년 ${MONTH_NAMES[previousMonth.month]}`}
+                events={previousMonthEvents}
+                emptyMessage="예약 없음"
+              />
+            </div>
 
-          {/* Current Month Calendar */}
-          <div className="lg:col-span-6">
-            <iframe
-              src={generateCalendarUrl(currentYear, currentMonth)}
-              style={{ border: 0 }}
-              width="100%"
-              height="500"
-              frameBorder="0"
-              scrolling="no"
-              title={`Google Calendar ${currentYear}년 ${MONTH_NAMES[currentMonth]}`}
-              data-testid="calendar-iframe-current"
-            />
-          </div>
+            {/* Current Month Calendar */}
+            <div className="lg:col-span-6">
+              <iframe
+                src={generateCalendarUrl(currentYear, currentMonth)}
+                style={{ border: 0 }}
+                width="100%"
+                height="500"
+                frameBorder="0"
+                scrolling="no"
+                title={`Google Calendar ${currentYear}년 ${MONTH_NAMES[currentMonth]}`}
+                data-testid="calendar-iframe-current"
+              />
+            </div>
 
-          {/* Next Month List */}
-          <div className="lg:col-span-3">
-            <EventListView
-              title={`${nextMonth.year}년 ${MONTH_NAMES[nextMonth.month]}`}
-              events={nextMonthEvents}
-              emptyMessage="예약 없음"
-            />
+            {/* Next Month List */}
+            <div className="lg:col-span-3">
+              <EventListView
+                title={`${nextMonth.year}년 ${MONTH_NAMES[nextMonth.month]}`}
+                events={nextMonthEvents}
+                emptyMessage="예약 없음"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -18,16 +18,6 @@ export default function Dashboard() {
     queryKey: ["/api/advertisers"],
   });
 
-  const { data: calendarEvents = [] } = useQuery<Array<{
-    id: string;
-    advertiser: string;
-    slot: string;
-    startDate: string;
-    endDate: string;
-    status: "부킹확정" | "집행중";
-  }>>({
-    queryKey: ["/api/calendar/ad-materials"],
-  });
 
   const monthlyRevenue = useMemo(() => {
     const revenueStatuses = ["세금계산서 발행 및 대금 청구", "매출 입금"];
