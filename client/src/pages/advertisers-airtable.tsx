@@ -372,9 +372,14 @@ export default function AdvertisersAirtable() {
           throw new Error("CSV 파일이 비어있거나 형식이 올바르지 않습니다");
         }
 
-        // Fetch agencies to map names to IDs
-        const agenciesResponse = await apiRequest("GET", "/api/agencies");
-        const allAgencies = agenciesResponse as AirtableAgency[];
+        // Fetch agencies to map names to IDs (if fails, continue without agency mapping)
+        let allAgencies: AirtableAgency[] = [];
+        try {
+          const agenciesResponse = await apiRequest("GET", "/api/agencies");
+          allAgencies = agenciesResponse as AirtableAgency[];
+        } catch (error) {
+          console.warn("Failed to fetch agencies, continuing without agency mapping:", error);
+        }
 
         const dataLines = lines.slice(1);
         let successCount = 0;
@@ -604,27 +609,22 @@ export default function AdvertisersAirtable() {
                 <Download className="h-4 w-4 mr-2" />
                 CSV
               </Button>
-              <label htmlFor="csv-upload">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => document.getElementById('csv-upload')?.click()}
-                  data-testid="button-upload-csv"
-                  asChild
-                >
-                  <span>
-                    <Upload className="h-4 w-4 mr-2" />
-                    CSV
-                  </span>
-                </Button>
-                <input
-                  id="csv-upload"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleUploadCSV}
-                  className="hidden"
-                />
-              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('csv-upload')?.click()}
+                data-testid="button-upload-csv"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                CSV
+              </Button>
+              <input
+                id="csv-upload"
+                type="file"
+                accept=".csv"
+                onChange={handleUploadCSV}
+                className="hidden"
+              />
               <Button
                 onClick={handleAddClick}
                 data-testid="button-add-advertiser"
