@@ -267,6 +267,9 @@ export default function AdvertisersAirtable() {
       Agency: "에이전시"
     };
     
+    // RFC 4180: Escape double quotes by doubling them
+    const escapeCSV = (value: string) => value.replace(/"/g, '""');
+    
     const rows = filteredAdvertisers.map(a => [
       a.companyName,
       a.businessNumber || "",
@@ -283,8 +286,8 @@ export default function AdvertisersAirtable() {
     ]);
 
     const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(",")),
+      headers.map(h => `"${escapeCSV(h)}"`).join(","),
+      ...rows.map(row => row.map(cell => `"${escapeCSV(cell)}"`).join(",")),
     ].join("\n");
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
@@ -303,6 +306,58 @@ export default function AdvertisersAirtable() {
     });
   };
 
+  // RFC 4180 compliant CSV parser
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+
+    while (i < line.length) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (inQuotes) {
+        if (char === '"') {
+          if (nextChar === '"') {
+            // Escaped quote - add single quote to current field
+            current += '"';
+            i += 2;
+            continue;
+          } else {
+            // End of quoted field
+            inQuotes = false;
+            i++;
+            continue;
+          }
+        } else {
+          // Regular character inside quotes
+          current += char;
+          i++;
+        }
+      } else {
+        if (char === '"') {
+          // Start of quoted field
+          inQuotes = true;
+          i++;
+        } else if (char === ',') {
+          // Field separator - preserve all whitespace per RFC 4180
+          result.push(current);
+          current = '';
+          i++;
+        } else {
+          // Regular character outside quotes
+          current += char;
+          i++;
+        }
+      }
+    }
+
+    // Add the last field - preserve all whitespace per RFC 4180
+    result.push(current);
+    return result;
+  };
+
   const handleUploadCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -311,7 +366,8 @@ export default function AdvertisersAirtable() {
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
-        const lines = text.split("\n").filter(line => line.trim());
+        // Handle both CRLF (\r\n) and LF (\n) line endings
+        const lines = text.split(/\r?\n/).filter(line => line.trim());
         if (lines.length < 2) {
           throw new Error("CSV 파일이 비어있거나 형식이 올바르지 않습니다");
         }
@@ -330,14 +386,12 @@ export default function AdvertisersAirtable() {
         };
 
         for (const line of dataLines) {
-          const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-          if (!matches || matches.length < 12) {
-            console.warn("Skipping invalid line:", line);
+          const values = parseCSVLine(line);
+          if (values.length < 12) {
+            console.warn("Skipping invalid line (expected 12 fields, got " + values.length + "):", line);
             errorCount++;
             continue;
           }
-
-          const values = matches.map(v => v.replace(/^"(.*)"$/, '$1').trim());
           const [
             companyName,
             businessNumber,
