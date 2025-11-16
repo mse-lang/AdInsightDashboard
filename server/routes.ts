@@ -17,6 +17,7 @@ import * as quoteItemsTable from "./airtable/tables/quote-items";
 import * as invoicesTable from "./airtable/tables/invoices";
 import * as settingsTable from "./airtable/tables/settings";
 import * as adProductsTable from "./airtable/tables/ad-products";
+import * as usersTable from "./airtable/tables/users";
 import type { AgencyRecord } from "./airtable/tables/agencies";
 import type { AdvertiserRecord } from "./airtable/tables/advertisers";
 import type { CampaignRecord } from "./airtable/tables/campaigns";
@@ -2454,51 +2455,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/pricings", async (req, res) => {
-    const pricings = await storage.getPricings();
-    res.json(pricings);
+    try {
+      const pricings = await adProductsTable.getAllPricings();
+      res.json(pricings);
+    } catch (error) {
+      console.error('Error fetching pricings:', error);
+      res.status(500).json({ error: "Failed to fetch pricings" });
+    }
   });
 
   app.get("/api/pricings/:key", async (req, res) => {
-    const productKey = req.params.key;
-    const pricing = await storage.getPricingByKey(productKey);
-    
-    if (!pricing) {
-      return res.status(404).json({ error: "Pricing not found" });
+    try {
+      const productKey = req.params.key;
+      const pricing = await adProductsTable.getPricingByKey(productKey);
+      
+      if (!pricing) {
+        return res.status(404).json({ error: "Pricing not found" });
+      }
+      
+      res.json(pricing);
+    } catch (error) {
+      console.error('Error fetching pricing by key:', error);
+      res.status(500).json({ error: "Failed to fetch pricing" });
     }
-    
-    res.json(pricing);
   });
 
   app.post("/api/pricings", async (req, res) => {
     try {
       const data = insertPricingSchema.parse(req.body);
-      const pricing = await storage.createPricing(data);
+      const pricing = await adProductsTable.createPricing(data);
       res.json(pricing);
     } catch (error) {
-      res.status(400).json({ error: "Invalid data" });
+      console.error('Error creating pricing:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
   });
 
   app.patch("/api/pricings/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    const pricing = await storage.updatePricing(id, req.body);
-    
-    if (!pricing) {
-      return res.status(404).json({ error: "Pricing not found" });
+    try {
+      const id = parseInt(req.params.id);
+      const pricing = await adProductsTable.updatePricing(id, req.body);
+      
+      if (!pricing) {
+        return res.status(404).json({ error: "Pricing not found" });
+      }
+      
+      res.json(pricing);
+    } catch (error) {
+      console.error('Error updating pricing:', error);
+      res.status(500).json({ error: "Failed to update pricing" });
     }
-    
-    res.json(pricing);
   });
 
   app.delete("/api/pricings/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    const deleted = await storage.deletePricing(id);
-    
-    if (!deleted) {
-      return res.status(404).json({ error: "Pricing not found" });
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await adProductsTable.deletePricing(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Pricing not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting pricing:', error);
+      res.status(500).json({ error: "Failed to delete pricing" });
     }
-    
-    res.json({ success: true });
   });
 
   // Settings routes
@@ -2519,6 +2541,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating general settings:', error);
       res.status(500).json({ error: "Failed to update general settings" });
+    }
+  });
+
+  app.get("/api/settings/notifications", async (req, res) => {
+    try {
+      const settings = await settingsTable.getNotificationSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching notification settings:', error);
+      res.status(500).json({ error: "Failed to fetch notification settings" });
+    }
+  });
+
+  app.patch("/api/settings/notifications", requireAuth, async (req, res) => {
+    try {
+      const settings = await settingsTable.updateNotificationSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      res.status(500).json({ error: "Failed to update notification settings" });
+    }
+  });
+
+  // User management routes
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await usersTable.getAllActiveUsers();
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const user = await usersTable.getUserById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  app.patch("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await usersTable.updateUser(req.params.id, req.body);
+      res.json(user);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ error: "Failed to update user" });
     }
   });
 

@@ -21,12 +21,15 @@ Preferred communication style: Simple, everyday language.
 **Data Layer**: Storage abstraction through `IStorage` interface.
 
 ### Data Storage Solutions
-**ORM**: Drizzle ORM.
-**Database**: PostgreSQL via Neon serverless driver.
-**Schema Design**: Includes `advertisers`, `memos`, `adSlots`, `adMaterials`, `quotes`, `materials`, `pricing`. Employs serial IDs, text fields, array fields for attachments, and timestamp tracking. Zod schema validation derived from Drizzle schemas.
+**Primary Data Store**: Airtable - Fully migrated core entities including Users, Advertisers, Agencies, Campaigns, Creatives, Quotes, Ad_Products (pricing), and System_Settings.
+**Settings Management**: All settings (general, notifications) stored in Airtable System_Settings table with category-based organization.
+**User Management**: Airtable Users table with Google OAuth integration, role-based access (Admin/User/ReadOnly), and status management.
+**Pricing Management**: Airtable Ad_Products table replaces legacy PostgreSQL pricing, with auto-generated productKey from Product Name.
+**Fallback Storage**: In-memory storage (MemStorage) used when Airtable credentials not configured for development.
+**Schema Validation**: Zod schemas for type safety and validation.
 
 ### Authentication and Authorization
-Currently disabled for public access, but Google OAuth, email-based magic link, and PostgreSQL-backed sessions code is preserved for future re-enablement.
+Google OAuth with role-based access control. User data stored in Airtable Users table. Three roles: Admin (full access), User (edit access), ReadOnly (view-only access). Session management via express-session with memory store.
 
 ### Key Architectural Patterns
 **Full-Stack TypeScript**: Shared types between client and server via a `@shared` directory.
@@ -37,7 +40,7 @@ Currently disabled for public access, but Google OAuth, email-based magic link, 
 
 ## External Dependencies
 **UI Components**: Radix UI primitives, Lucide React, Recharts, date-fns, CMDK.
-**Database Connection**: Neon serverless PostgreSQL, `@neondatabase/serverless`.
+**Airtable Integration**: Airtable client with table modules for all entities, fallback to in-memory storage for development.
 **Form Handling**: React Hook Form, Zod, `@hookform/resolvers`.
 **Styling**: Tailwind CSS, PostCSS, Class Variance Authority (CVA), clsx, tailwind-merge.
 **Messaging**: Solapi for SMS and KakaoTalk.

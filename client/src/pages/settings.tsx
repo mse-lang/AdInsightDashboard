@@ -35,8 +35,20 @@ import { UserPlus, Trash2, Shield, Save, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Pricing, InsertPricing } from "@shared/schema";
+import type { InsertPricing } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+
+// Airtable Pricing type with string ID
+interface AirtablePricing {
+  id: string; // Airtable record ID
+  productName: string;
+  productKey: string;
+  price: string;
+  specs: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPricingSchema } from "@shared/schema";
@@ -67,38 +79,34 @@ interface User {
   email: string;
   name: string;
   role: string;
-  isActive: boolean;
-  lastLogin: string;
+  status: 'Active' | 'Inactive';
+}
+
+interface AirtableUser {
+  id: string;
+  fields: {
+    Name: string;
+    Email: string;
+    Role: 'Admin' | 'User' | 'ReadOnly';
+    Status: 'Active' | 'Inactive';
+  };
 }
 
 export default function Settings() {
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      email: "ad@venturesquare.net",
-      name: "관리자",
-      role: "admin",
-      isActive: true,
-      lastLogin: "2024-01-25 14:30",
-    },
-    {
-      id: "2",
-      email: "manager@venturesquare.net",
-      name: "광고팀장",
-      role: "manager",
-      isActive: true,
-      lastLogin: "2024-01-25 10:15",
-    },
-    {
-      id: "3",
-      email: "staff@venturesquare.net",
-      name: "담당자",
-      role: "staff",
-      isActive: false,
-      lastLogin: "2024-01-20 16:45",
-    },
-  ]);
+  
+  const { data: airtableUsers = [], isLoading: usersLoading } = useQuery<AirtableUser[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Transform Airtable users to UI format
+  const users: User[] = airtableUsers.map(user => ({
+    id: user.id,
+    email: user.fields.Email,
+    name: user.fields.Name,
+    role: user.fields.Role.toLowerCase(),
+    status: user.fields.Status,
+  }));
 
   const { data: generalSettings, isLoading: settingsLoading } = useQuery<GeneralSettings>({
     queryKey: ["/api/settings/general"],
@@ -106,14 +114,48 @@ export default function Settings() {
 
   const [editedSettings, setEditedSettings] = useState<Partial<GeneralSettings>>({});
 
-  const { data: pricings = [], isLoading: pricingsLoading } = useQuery<Pricing[]>({
+  const { data: notificationSettings, isLoading: notificationSettingsLoading } = useQuery<{
+    inquiryNotification: boolean;
+    quoteNotification: boolean;
+    campaignNotification: boolean;
+    paymentNotification: boolean;
+  }>({
+    queryKey: ["/api/settings/notifications"],
+  });
+
+  const updateNotificationMutation = useMutation({
+    mutationFn: async (data: { [key: string]: boolean }) => {
+      const res = await apiRequest("PATCH", "/api/settings/notifications", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/notifications"] });
+      toast({
+        title: "알림 설정 저장",
+        description: "알림 설정이 성공적으로 저장되었습니다.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "저장 실패",
+        description: error.message || "알림 설정 저장에 실패했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleNotificationChange = (key: string, value: boolean) => {
+    updateNotificationMutation.mutate({ [key]: value });
+  };
+
+  const { data: pricings = [], isLoading: pricingsLoading } = useQuery<AirtablePricing[]>({
     queryKey: ["/api/pricings"],
   });
 
-  const [editedPricings, setEditedPricings] = useState<Record<number, Partial<Pricing>>>({});
-  const [focusedPriceInput, setFocusedPriceInput] = useState<number | null>(null);
+  const [editedPricings, setEditedPricings] = useState<Record<string, Partial<AirtablePricing>>>({});
+  const [focusedPriceInput, setFocusedPriceInput] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [deletingPricing, setDeletingPricing] = useState<Pricing | null>(null);
+  const [deletingPricing, setDeletingPricing] = useState<AirtablePricing | null>(null);
 
   const form = useForm<InsertPricing>({
     resolver: zodResolver(insertPricingSchema),
@@ -150,7 +192,7 @@ export default function Settings() {
   });
 
   const deletePricingMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       const res = await apiRequest("DELETE", `/api/pricings/${id}`, undefined);
       return await res.json();
     },
@@ -172,7 +214,7 @@ export default function Settings() {
   });
 
   const updatePricingMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<Pricing> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<AirtablePricing> }) => {
       const res = await apiRequest("PATCH", `/api/pricings/${id}`, data);
       return await res.json();
     },
@@ -193,7 +235,7 @@ export default function Settings() {
     },
   });
 
-  const handlePricingEdit = (id: number, field: keyof Pricing, value: string) => {
+  const handlePricingEdit = (id: string, field: keyof AirtablePricing, value: string) => {
     setEditedPricings(prev => ({
       ...prev,
       [id]: {
@@ -203,7 +245,7 @@ export default function Settings() {
     }));
   };
 
-  const handleSavePricing = (id: number) => {
+  const handleSavePricing = (id: string) => {
     const edits = editedPricings[id];
     if (edits) {
       updatePricingMutation.mutate({ id, data: edits });
@@ -226,37 +268,55 @@ export default function Settings() {
     }
   };
 
-  const toggleUserStatus = (id: string) => {
-    setUsers(
-      users.map((user) =>
-        user.id === id ? { ...user, isActive: !user.isActive } : user
-      )
-    );
-  };
+  const toggleUserMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'Active' | 'Inactive' }) => {
+      const res = await apiRequest("PATCH", `/api/users/${id}`, { Status: status });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "사용자 상태 변경",
+        description: "사용자 상태가 성공적으로 변경되었습니다.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "상태 변경 실패",
+        description: error.message || "사용자 상태 변경에 실패했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const deleteUser = (id: string) => {
-    setUsers(users.filter((user) => user.id !== id));
+  const toggleUserStatus = (user: User) => {
+    const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
+    toggleUserMutation.mutate({ id: user.id, status: newStatus });
   };
 
   const getRoleColor = (role: string) => {
-    switch (role) {
+    switch (role.toLowerCase()) {
       case "admin":
         return "bg-red-100 text-red-700 border-red-200";
-      case "manager":
+      case "user":
         return "bg-blue-100 text-blue-700 border-blue-200";
+      case "readonly":
+        return "bg-gray-100 text-gray-700 border-gray-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
   const getRoleLabel = (role: string) => {
-    switch (role) {
+    switch (role.toLowerCase()) {
       case "admin":
         return "관리자";
-      case "manager":
+      case "user":
         return "매니저";
+      case "readonly":
+        return "읽기전용";
       default:
-        return "스태프";
+        return "사용자";
     }
   };
 
@@ -327,58 +387,49 @@ export default function Settings() {
                     시스템 접근 권한을 관리하세요
                   </p>
                 </div>
-                <Button data-testid="button-add-user">
+                <Button data-testid="button-add-user" disabled>
                   <UserPlus className="h-4 w-4 mr-2" />
                   사용자 추가
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>이메일</TableHead>
-                    <TableHead>이름</TableHead>
-                    <TableHead>역할</TableHead>
-                    <TableHead>마지막 로그인</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead className="text-right">액션</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                      <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`${getRoleColor(user.role)} border`}>
-                          <Shield className="h-3 w-3 mr-1" />
-                          {getRoleLabel(user.role)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{user.lastLogin}</TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={user.isActive}
-                          onCheckedChange={() => toggleUserStatus(user.id)}
-                          data-testid={`switch-active-${user.id}`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteUser(user.id)}
-                          disabled={user.role === "admin"}
-                          data-testid={`button-delete-user-${user.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+              {usersLoading ? (
+                <div className="text-center py-8 text-muted-foreground">로딩중...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>이메일</TableHead>
+                      <TableHead>이름</TableHead>
+                      <TableHead>역할</TableHead>
+                      <TableHead>상태</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                        <TableCell className="font-medium">{user.email}</TableCell>
+                        <TableCell>{user.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`${getRoleColor(user.role)} border`}>
+                            <Shield className="h-3 w-3 mr-1" />
+                            {getRoleLabel(user.role)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={user.status === 'Active'}
+                            onCheckedChange={() => toggleUserStatus(user)}
+                            disabled={user.role.toLowerCase() === "admin" || toggleUserMutation.isPending}
+                            data-testid={`switch-active-${user.id}`}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -734,34 +785,60 @@ export default function Settings() {
               <CardTitle>알림 설정</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">신규 문의 알림</p>
-                  <p className="text-sm text-muted-foreground">새로운 광고 문의가 접수되면 알림</p>
-                </div>
-                <Switch defaultChecked data-testid="switch-inquiry-notification" />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">견적서 발송 알림</p>
-                  <p className="text-sm text-muted-foreground">견적서가 발송되면 알림</p>
-                </div>
-                <Switch defaultChecked data-testid="switch-quote-notification" />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">광고 집행 시작 알림</p>
-                  <p className="text-sm text-muted-foreground">광고 집행이 시작되면 알림</p>
-                </div>
-                <Switch defaultChecked data-testid="switch-campaign-notification" />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">결제 완료 알림</p>
-                  <p className="text-sm text-muted-foreground">결제가 완료되면 알림</p>
-                </div>
-                <Switch defaultChecked data-testid="switch-payment-notification" />
-              </div>
+              {notificationSettingsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">로딩중...</div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">신규 문의 알림</p>
+                      <p className="text-sm text-muted-foreground">새로운 광고 문의가 접수되면 알림</p>
+                    </div>
+                    <Switch 
+                      checked={notificationSettings?.inquiryNotification ?? true}
+                      onCheckedChange={(checked) => handleNotificationChange('inquiryNotification', checked)}
+                      disabled={updateNotificationMutation.isPending}
+                      data-testid="switch-inquiry-notification" 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">견적서 발송 알림</p>
+                      <p className="text-sm text-muted-foreground">견적서가 발송되면 알림</p>
+                    </div>
+                    <Switch 
+                      checked={notificationSettings?.quoteNotification ?? true}
+                      onCheckedChange={(checked) => handleNotificationChange('quoteNotification', checked)}
+                      disabled={updateNotificationMutation.isPending}
+                      data-testid="switch-quote-notification" 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">광고 집행 시작 알림</p>
+                      <p className="text-sm text-muted-foreground">광고 집행이 시작되면 알림</p>
+                    </div>
+                    <Switch 
+                      checked={notificationSettings?.campaignNotification ?? true}
+                      onCheckedChange={(checked) => handleNotificationChange('campaignNotification', checked)}
+                      disabled={updateNotificationMutation.isPending}
+                      data-testid="switch-campaign-notification" 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">결제 완료 알림</p>
+                      <p className="text-sm text-muted-foreground">결제가 완료되면 알림</p>
+                    </div>
+                    <Switch 
+                      checked={notificationSettings?.paymentNotification ?? true}
+                      onCheckedChange={(checked) => handleNotificationChange('paymentNotification', checked)}
+                      disabled={updateNotificationMutation.isPending}
+                      data-testid="switch-payment-notification" 
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
