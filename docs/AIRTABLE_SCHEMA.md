@@ -29,13 +29,18 @@ Purpose: Primary data store for all advertising management entities
 
 | Field Name | Type | Description | Required |
 |------------|------|-------------|----------|
-| Company Name | Single line text | 회사명 | Yes |
-| Business Number | Single line text | 사업자등록번호 | No |
+| Company Name | Single line text | 광고주명 | Yes |
+| Business Number | Single line text | 사업자번호 (구 형식) | No |
+| Business Registration Number | Single line text | 사업자등록번호 (신 형식) | No |
+| Bank Account Number | Single line text | 통장 번호 | No |
+| Ad Materials | Single line text | 광고 소재/제품/서비스명 (쉼표 구분) | No |
 | Contact Person | Single line text | 담당자 이름 | Yes |
+| Contact Person Type | Single select | Advertiser / Agency | Yes |
+| Agency | Link to Agencies | 연결된 에이전시 (담당자가 Agency인 경우) | No |
 | Email | Email | 담당자 이메일 | Yes |
 | Phone | Phone number | 연락처 | Yes |
 | Industry | Single select | 산업군 | No |
-| Account Manager | Link to Users | 담당 AE | Yes |
+| Account Manager | Link to Users | 담당 AE | No |
 | Status | Single select | Lead / Active / Inactive | Yes |
 | Communication Logs | Link to Communication_Logs | 커뮤니케이션 기록 | - |
 | Campaigns | Link to Campaigns | 진행 캠페인 | - |
@@ -43,9 +48,41 @@ Purpose: Primary data store for all advertising management entities
 | Created | Created time | Auto-generated | Auto |
 | Last Modified | Last modified time | Auto-generated | Auto |
 
+**Field Notes**:
+- **Business Number**: 구 사업자번호 (하이픈 없는 10자리)
+- **Business Registration Number**: 신 사업자등록번호 (13자리)
+- **Bank Account Number**: 입금용 계좌번호
+- **Ad Materials**: 광고하는 제품/서비스명을 쉼표로 구분하여 저장
+- **Contact Person Type**: 
+  - `Advertiser`: 광고주 직원
+  - `Agency`: 대행사 직원 (이 경우 Agency 필드 필수)
+- **Agency**: 에이전시 테이블과 연결 (Contact Person Type이 Agency인 경우만)
+
 ---
 
-### 3. Communication_Logs
+### 3. Agencies
+**Purpose**: Advertising agency management and tracking
+
+| Field Name | Type | Description | Required |
+|------------|------|-------------|----------|
+| Name | Single line text | 에이전시명 | Yes |
+| Business Registration Number | Single line text | 사업자등록번호 | No |
+| Contact Person | Single line text | 담당자 이름 | Yes |
+| Email | Email | 담당자 이메일 | Yes |
+| Phone | Phone number | 연락처 | Yes |
+| Status | Single select | Active / Inactive | Yes |
+| Notes | Long text | 메모 및 비고사항 | No |
+| Advertisers | Link to Advertisers | 연결된 광고주 목록 | - |
+| Created | Created time | Auto-generated | Auto |
+| Last Modified | Last modified time | Auto-generated | Auto |
+
+**Field Notes**:
+- **Advertisers**: 이 에이전시와 연결된 광고주들 (역방향 링크)
+- 에이전시를 통해 광고하는 경우, Advertiser의 Contact Person Type을 'Agency'로 설정하고 해당 에이전시를 연결
+
+---
+
+### 4. Communication_Logs
 **Purpose**: Email, SMS, KakaoTalk communication tracking
 
 | Field Name | Type | Description | Required |
@@ -63,7 +100,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 4. Ad_Products
+### 5. Ad_Products
 **Purpose**: Advertising product catalog
 
 | Field Name | Type | Description | Required |
@@ -80,7 +117,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 5. Campaigns
+### 6. Campaigns
 **Purpose**: Campaign scheduling and tracking
 
 | Field Name | Type | Description | Required |
@@ -111,7 +148,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 6. Creatives
+### 7. Creatives
 **Purpose**: Advertising creative asset management
 
 | Field Name | Type | Description | Required |
@@ -129,7 +166,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 7. Creative_Variants (Optional)
+### 8. Creative_Variants (Optional)
 **Purpose**: Dimension-specific converted assets
 
 | Field Name | Type | Description | Required |
@@ -141,7 +178,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 8. Quotes
+### 9. Quotes
 **Purpose**: Quote header information
 
 | Field Name | Type | Description | Required |
@@ -161,7 +198,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 9. Quote_Items
+### 10. Quote_Items
 **Purpose**: Individual line items in quotes
 
 | Field Name | Type | Description | Required |
@@ -176,7 +213,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 10. Invoices
+### 11. Invoices
 **Purpose**: Tax invoice tracking
 
 | Field Name | Type | Description | Required |
@@ -195,7 +232,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 11. Reports
+### 12. Reports
 **Purpose**: Performance data and report files
 
 | Field Name | Type | Description | Required |
@@ -216,7 +253,7 @@ Purpose: Primary data store for all advertising management entities
 
 ---
 
-### 12. System_Settings
+### 13. System_Settings
 **Purpose**: API keys, templates, and configuration
 
 | Field Name | Type | Description | Required |
