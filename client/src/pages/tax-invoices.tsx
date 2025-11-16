@@ -63,6 +63,19 @@ interface Advertiser {
   status: string;
 }
 
+interface GeneralSettings {
+  companyName: string;
+  ceoName: string;
+  companyEmail: string;
+  companyPhone: string;
+  businessNumber: string;
+  companyAddress: string;
+  businessType: string;
+  businessClass: string;
+  bankName: string;
+  bankAccountNumber: string;
+}
+
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   "작성중": { label: "작성중", variant: "secondary" },
   "발행완료": { label: "발행완료", variant: "default" },
@@ -116,6 +129,10 @@ export default function TaxInvoices() {
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const { data: generalSettings, isLoading: settingsLoading } = useQuery<GeneralSettings>({
+    queryKey: ["/api/settings/general"],
   });
 
   const createMutation = useMutation({
@@ -192,15 +209,15 @@ export default function TaxInvoices() {
         tax: 0,
         remark: "",
       }],
-      issuerCorpNum: "",
-      issuerCorpName: "",
-      issuerCEOName: "",
-      issuerAddr: "",
-      issuerBizType: "",
-      issuerBizClass: "",
-      issuerContactName: "",
-      issuerTelNum: "",
-      issuerEmail: "",
+      issuerCorpNum: generalSettings?.businessNumber || "",
+      issuerCorpName: generalSettings?.companyName || "",
+      issuerCEOName: generalSettings?.ceoName || "",
+      issuerAddr: generalSettings?.companyAddress || "",
+      issuerBizType: generalSettings?.businessType || "",
+      issuerBizClass: generalSettings?.businessClass || "",
+      issuerContactName: generalSettings?.ceoName || "",
+      issuerTelNum: generalSettings?.companyPhone || "",
+      issuerEmail: generalSettings?.companyEmail || "",
       recipientCorpNum: "",
       recipientCorpName: "",
       recipientCEOName: "",
@@ -215,6 +232,7 @@ export default function TaxInvoices() {
   };
 
   const handleCreateInvoice = () => {
+    resetForm();
     setFormDialogOpen(true);
   };
 
@@ -410,7 +428,11 @@ export default function TaxInvoices() {
                   <SelectItem value="발행실패">발행실패</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={handleCreateInvoice} data-testid="button-add-invoice">
+              <Button 
+                onClick={handleCreateInvoice} 
+                disabled={settingsLoading}
+                data-testid="button-add-invoice"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 세금계산서 발행
               </Button>

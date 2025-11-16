@@ -10,6 +10,9 @@ export interface GeneralSettings {
   companyEmail: string;
   companyPhone: string;
   businessNumber: string;
+  companyAddress: string;
+  businessType: string;
+  businessClass: string;
   bankName: string;
   bankAccountNumber: string;
 }
@@ -20,6 +23,9 @@ const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   companyEmail: 'ad@venturesquare.net',
   companyPhone: '02-1234-5678',
   businessNumber: '123-45-67890',
+  companyAddress: '',
+  businessType: '',
+  businessClass: '',
   bankName: '',
   bankAccountNumber: '',
 };
@@ -30,6 +36,9 @@ const GENERAL_SETTINGS_KEYS = {
   companyEmail: 'CompanyEmail',
   companyPhone: 'CompanyPhone',
   businessNumber: 'BusinessNumber',
+  companyAddress: 'CompanyAddress',
+  businessType: 'BusinessType',
+  businessClass: 'BusinessClass',
   bankName: 'BankName',
   bankAccountNumber: 'BankAccountNumber',
 };

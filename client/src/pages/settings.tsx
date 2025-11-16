@@ -55,6 +55,9 @@ interface GeneralSettings {
   companyEmail: string;
   companyPhone: string;
   businessNumber: string;
+  companyAddress: string;
+  businessType: string;
+  businessClass: string;
   bankName: string;
   bankAccountNumber: string;
 }
@@ -664,6 +667,33 @@ export default function Settings() {
                       value={getCurrentSetting('businessNumber')}
                       onChange={(e) => handleSettingChange('businessNumber', e.target.value)}
                       data-testid="input-business-number" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>회사 주소</Label>
+                    <Input 
+                      value={getCurrentSetting('companyAddress')}
+                      onChange={(e) => handleSettingChange('companyAddress', e.target.value)}
+                      placeholder="예: 서울특별시 강남구 테헤란로 123"
+                      data-testid="input-company-address" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>업태</Label>
+                    <Input 
+                      value={getCurrentSetting('businessType')}
+                      onChange={(e) => handleSettingChange('businessType', e.target.value)}
+                      placeholder="예: 서비스업"
+                      data-testid="input-business-type" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>종목</Label>
+                    <Input 
+                      value={getCurrentSetting('businessClass')}
+                      onChange={(e) => handleSettingChange('businessClass', e.target.value)}
+                      placeholder="예: 광고대행"
+                      data-testid="input-business-class" 
                     />
                   </div>
                   <div className="space-y-2">
