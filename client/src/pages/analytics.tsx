@@ -265,8 +265,8 @@ export default function Analytics() {
                           <TableCell className="font-medium">{ad.name}</TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
-                              <span className="text-sm">{ad.contact}</span>
-                              <span className="text-xs text-muted-foreground">{ad.email}</span>
+                              <span className="text-sm">{ad.ceoName || '-'}</span>
+                              <span className="text-xs text-muted-foreground">-</span>
                             </div>
                           </TableCell>
                           <TableCell>
