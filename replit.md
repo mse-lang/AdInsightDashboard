@@ -45,7 +45,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**2025-11-16**: **Phase 2 Complete** - Advertiser Management API
+**2025-11-16**: **Phase 2 Module 4 Complete** ✅ - Quote & Billing Module
+- ✅ **Production-ready** Airtable table functions: Quotes, Quote Items, Invoices (full CRUD)
+- ✅ Complete API routes with authentication guards and Airtable credential checks
+- ✅ Fixed critical autoNumber field sorting issue (removed dependencies on Quote Number/Invoice Number)
+- ✅ Comprehensive Zod validation with robust error handling (400/404/500/503 status codes)
+- ✅ Invoice advertiser linkage: Automatically extracts advertiser from Quote relationship
+- ✅ Frontend TypeScript type definitions for all three entities
+- ✅ **Complete CRUD API endpoints**:
+  - Quotes: GET /api/quotes, GET /api/quotes/:id, GET /api/quotes/advertiser/:id, GET /api/quotes/status/:status, POST, PATCH, DELETE, POST /api/quotes/:id/approve
+  - Quote Items: GET /api/quotes/:quoteId/items, **GET /api/quote-items/:id**, POST /api/quote-items, POST /api/quote-items/bulk, PATCH /api/quote-items/:id, DELETE /api/quote-items/:id
+  - Invoices: GET /api/invoices, GET /api/invoices/:id, GET /api/invoices/quote/:id, GET /api/invoices/status/:status, GET /api/invoices/overdue, POST (with auto-advertiser), PATCH, DELETE
+- 📝 **Next**: Solapi integration for multi-channel communications (Email/SMS/KakaoTalk)
+
+**2025-11-16**: **Phase 2 Start** - Advertiser Management API
 - ✅ Communication Logs Airtable table functions (CRUD operations)
 - ✅ Advertiser API routes migrated to Airtable with production-ready error handling
 - ✅ Authentication guards on all mutation endpoints (POST/PATCH/DELETE)
@@ -53,7 +66,6 @@ Preferred communication style: Simple, everyday language.
 - ✅ Proper HTTP status codes: 400 (validation), 404 (not found), 500 (server error), 503 (service unavailable)
 - ✅ Airtable credentials checking with graceful degradation
 - ✅ Frontend Airtable type definitions and advertiser list page
-- 📝 Ready for Phase 2 continued: Quote/billing module and Solapi integration
 
 **2025-11-16**: **Phase 1 Complete** - Foundation Layer
 - ✅ Airtable integration layer with 12-table type system
@@ -67,6 +79,12 @@ Preferred communication style: Simple, everyday language.
 - Migrating from PostgreSQL-only to Airtable-primary architecture
 - Preserving React + Express stack for rapid development
 - Graceful fallback: System works in dev mode without any credentials
+
+**Technical Constraints**:
+- autoNumber fields (Quote Number, Invoice Number) cannot be created via Airtable Meta API
+- autoNumber fields must be manually added in Airtable UI or cannot be used for sorting
+- All quote/invoice list queries now sort by creation time instead of auto-generated numbers
+- Currency fields require `symbol` option (e.g., `{ precision: 0, symbol: 'KRW' }`)
 
 ## System Architecture
 

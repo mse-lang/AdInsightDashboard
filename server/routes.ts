@@ -10,7 +10,13 @@ import type { UserRecord } from "./airtable/tables/users";
 import { isAdmin, canEdit, createUser } from "./airtable/tables/users";
 import * as advertisersTable from "./airtable/tables/advertisers";
 import * as communicationLogsTable from "./airtable/tables/communication-logs";
+import * as quotesTable from "./airtable/tables/quotes";
+import * as quoteItemsTable from "./airtable/tables/quote-items";
+import * as invoicesTable from "./airtable/tables/invoices";
 import type { AdvertiserRecord } from "./airtable/tables/advertisers";
+import type { QuoteRecord } from "./airtable/tables/quotes";
+import type { QuoteItemRecord } from "./airtable/tables/quote-items";
+import type { InvoiceRecord } from "./airtable/tables/invoices";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
@@ -46,6 +52,47 @@ function transformAdvertiserForAPI(record: AdvertiserRecord) {
     industry: record.fields['Industry'] || '',
     status: record.fields['Status'],
     accountManager: record.fields['Account Manager']?.[0] || null,
+  };
+}
+
+function transformQuoteForAPI(record: QuoteRecord) {
+  return {
+    id: record.id,
+    quoteNumber: record.fields['Quote Number'],
+    advertiserId: record.fields['Advertiser']?.[0] || null,
+    totalAmount: record.fields['Total Amount'],
+    discountRate: record.fields['Discount Rate'] || 0,
+    finalAmount: record.fields['Final Amount'] || record.fields['Total Amount'],
+    status: record.fields['Status'],
+    pdfUrl: record.fields['PDF URL'] || '',
+    sentAt: record.fields['Sent At'] || null,
+  };
+}
+
+function transformQuoteItemForAPI(record: QuoteItemRecord) {
+  return {
+    id: record.id,
+    quoteId: record.fields['Quote']?.[0] || null,
+    adProductId: record.fields['Ad Product']?.[0] || null,
+    quantity: record.fields['Quantity'],
+    unitPrice: record.fields['Unit Price'],
+    subtotal: record.fields['Subtotal'] || (record.fields['Quantity'] * record.fields['Unit Price']),
+    duration: record.fields['Duration'] || null,
+  };
+}
+
+function transformInvoiceForAPI(record: InvoiceRecord) {
+  return {
+    id: record.id,
+    invoiceNumber: record.fields['Invoice Number'],
+    quoteId: record.fields['Quote']?.[0] || null,
+    advertiserId: record.fields['Advertiser']?.[0] || null,
+    amount: record.fields['Amount'],
+    status: record.fields['Status'],
+    issueDate: record.fields['Issue Date'] || null,
+    dueDate: record.fields['Due Date'] || null,
+    paymentDate: record.fields['Payment Date'] || null,
+    notes: record.fields['Notes'] || '',
   };
 }
 
@@ -469,7 +516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const advertiserId = req.params.id;
       const logs = await communicationLogsTable.getCommunicationLogsByAdvertiser(advertiserId);
       
-      const transformed = logs.map((log) => ({
+      const transformed = logs.map((log: any) => ({
         id: log.id,
         type: log.fields['Type'],
         subject: log.fields['Subject'] || '',
@@ -540,6 +587,693 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error creating communication log:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: 'Failed to create communication log', details: errorMessage });
+    }
+  });
+
+  // Quotes routes - Airtable-based
+  app.get("/api/quotes", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const records = await quotesTable.getAllQuotes();
+      const quotes = records.map(transformQuoteForAPI);
+      res.json(quotes);
+    } catch (error) {
+      console.error('Error fetching quotes:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch quotes', details: errorMessage });
+    }
+  });
+
+  app.get("/api/quotes/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await quotesTable.getQuoteById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+      
+      res.json(transformQuoteForAPI(record));
+    } catch (error) {
+      console.error('Error fetching quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch quote', details: errorMessage });
+    }
+  });
+
+  app.get("/api/advertisers/:advertiserId/quotes", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const advertiserId = req.params.advertiserId;
+      const records = await quotesTable.getQuotesByAdvertiser(advertiserId);
+      const quotes = records.map(transformQuoteForAPI);
+      res.json(quotes);
+    } catch (error) {
+      console.error('Error fetching quotes by advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch quotes', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quotes", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        advertiserId: z.string().trim().min(1, "Advertiser ID is required"),
+        totalAmount: z.number().min(0, "Total amount must be 0 or greater"),
+        discountRate: z.number().min(0).max(1).optional(),
+        status: z.enum(['Draft', 'Sent', 'Approved', 'Rejected']).optional(),
+        pdfUrl: z.string().trim().url().optional().or(z.literal('')),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      const record = await quotesTable.createQuote({
+        advertiserId: data.advertiserId,
+        totalAmount: data.totalAmount,
+        discountRate: data.discountRate,
+        status: data.status || 'Draft',
+        pdfUrl: data.pdfUrl,
+      });
+      
+      if (!record) {
+        return res.status(500).json({ error: 'Failed to create quote in Airtable' });
+      }
+      
+      res.json(transformQuoteForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error creating quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to create quote', details: errorMessage });
+    }
+  });
+
+  app.patch("/api/quotes/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        totalAmount: z.number().min(0).optional(),
+        discountRate: z.number().min(0).max(1).optional(),
+        status: z.enum(['Draft', 'Sent', 'Approved', 'Rejected']).optional(),
+        pdfUrl: z.string().trim().url().optional().or(z.literal('')),
+        sentAt: z.string().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await quotesTable.updateQuote(recordId, {
+        totalAmount: data.totalAmount,
+        discountRate: data.discountRate,
+        status: data.status,
+        pdfUrl: data.pdfUrl,
+        sentAt: data.sentAt,
+      });
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.json(transformQuoteForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      
+      console.error('Error updating quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found') || errorMessage.includes('update failed')) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      if (errorMessage.includes('No fields to update')) {
+        return res.status(400).json({ error: 'No fields provided for update' });
+      }
+      
+      res.status(500).json({ error: 'Failed to update quote', details: errorMessage });
+    }
+  });
+
+  app.delete("/api/quotes/:id", requireAuth, async (req, res) => {
+    try {
+      const recordId = req.params.id;
+      
+      if (!recordId) {
+        return res.status(400).json({ error: 'Quote ID is required' });
+      }
+      
+      const success = await quotesTable.deleteQuote(recordId);
+      
+      if (!success) {
+        return res.status(404).json({ error: 'Quote not found or deletion failed' });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      
+      res.status(500).json({ error: 'Failed to delete quote', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quotes/:id/send", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await quotesTable.sendQuote(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.json(transformQuoteForAPI(record));
+    } catch (error) {
+      console.error('Error sending quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.status(500).json({ error: 'Failed to send quote', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quotes/:id/approve", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await quotesTable.approveQuote(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.json(transformQuoteForAPI(record));
+    } catch (error) {
+      console.error('Error approving quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      res.status(500).json({ error: 'Failed to approve quote', details: errorMessage });
+    }
+  });
+
+  // Quote Items routes - Airtable-based
+  app.get("/api/quotes/:quoteId/items", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const quoteId = req.params.quoteId;
+      const records = await quoteItemsTable.getQuoteItemsByQuote(quoteId);
+      const items = records.map(transformQuoteItemForAPI);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching quote items:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch quote items', details: errorMessage });
+    }
+  });
+
+  app.get("/api/quote-items/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await quoteItemsTable.getQuoteItemById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Quote item not found" });
+      }
+      
+      res.json(transformQuoteItemForAPI(record));
+    } catch (error) {
+      console.error('Error fetching quote item:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch quote item', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quote-items", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        quoteId: z.string().trim().min(1, "Quote ID is required"),
+        adProductId: z.string().trim().min(1, "Ad Product ID is required"),
+        quantity: z.number().int().positive("Quantity must be positive"),
+        unitPrice: z.number().min(0, "Unit price cannot be negative"),
+        duration: z.number().int().positive().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      const record = await quoteItemsTable.createQuoteItem({
+        quoteId: data.quoteId,
+        adProductId: data.adProductId,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        duration: data.duration,
+      });
+      
+      if (!record) {
+        return res.status(500).json({ error: 'Failed to create quote item in Airtable' });
+      }
+      
+      res.json(transformQuoteItemForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error creating quote item:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to create quote item', details: errorMessage });
+    }
+  });
+
+  app.post("/api/quote-items/bulk", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        items: z.array(z.object({
+          quoteId: z.string().trim().min(1),
+          adProductId: z.string().trim().min(1),
+          quantity: z.number().int().positive(),
+          unitPrice: z.number().min(0),
+          duration: z.number().int().positive().optional(),
+        })).min(1, "At least one item is required"),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      const records = await quoteItemsTable.bulkCreateQuoteItems(data.items);
+      const items = records.map(transformQuoteItemForAPI);
+      res.json(items);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error bulk creating quote items:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to bulk create quote items', details: errorMessage });
+    }
+  });
+
+  app.patch("/api/quote-items/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        adProductId: z.string().trim().min(1).optional(),
+        quantity: z.number().int().positive().optional(),
+        unitPrice: z.number().min(0).optional(),
+        duration: z.number().int().positive().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await quoteItemsTable.updateQuoteItem(recordId, {
+        adProductId: data.adProductId,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        duration: data.duration,
+      });
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Quote item not found' });
+      }
+      
+      res.json(transformQuoteItemForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      
+      console.error('Error updating quote item:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found') || errorMessage.includes('update failed')) {
+        return res.status(404).json({ error: 'Quote item not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      
+      res.status(500).json({ error: 'Failed to update quote item', details: errorMessage });
+    }
+  });
+
+  app.delete("/api/quote-items/:id", requireAuth, async (req, res) => {
+    try {
+      const recordId = req.params.id;
+      
+      if (!recordId) {
+        return res.status(400).json({ error: 'Quote item ID is required' });
+      }
+      
+      const success = await quoteItemsTable.deleteQuoteItem(recordId);
+      
+      if (!success) {
+        return res.status(404).json({ error: 'Quote item not found or deletion failed' });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting quote item:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Quote item not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      
+      res.status(500).json({ error: 'Failed to delete quote item', details: errorMessage });
+    }
+  });
+
+  // Invoices routes - Airtable-based
+  app.get("/api/invoices", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const records = await invoicesTable.getAllInvoices();
+      const invoices = records.map(transformInvoiceForAPI);
+      res.json(invoices);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch invoices', details: errorMessage });
+    }
+  });
+
+  app.get("/api/invoices/overdue", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const records = await invoicesTable.getOverdueInvoices();
+      const invoices = records.map(transformInvoiceForAPI);
+      res.json(invoices);
+    } catch (error) {
+      console.error('Error fetching overdue invoices:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch overdue invoices', details: errorMessage });
+    }
+  });
+
+  app.get("/api/invoices/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await invoicesTable.getInvoiceById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      res.json(transformInvoiceForAPI(record));
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch invoice', details: errorMessage });
+    }
+  });
+
+  app.get("/api/quotes/:quoteId/invoices", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const quoteId = req.params.quoteId;
+      const records = await invoicesTable.getInvoicesByQuote(quoteId);
+      const invoices = records.map(transformInvoiceForAPI);
+      res.json(invoices);
+    } catch (error) {
+      console.error('Error fetching invoices by quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch invoices', details: errorMessage });
+    }
+  });
+
+  app.post("/api/invoices", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        quoteId: z.string().trim().min(1, "Quote ID is required"),
+        amount: z.number().min(0, "Amount cannot be negative"),
+        status: z.enum(['Pending', 'Issued', 'Paid', 'Overdue']).optional(),
+        issueDate: z.string().optional(),
+        dueDate: z.string().optional(),
+        notes: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Fetch the quote to get the advertiser ID
+      const quote = await quotesTable.getQuoteById(data.quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: 'Quote not found' });
+      }
+      
+      const advertiserId = quote.fields['Advertiser']?.[0];
+      
+      const record = await invoicesTable.createInvoice({
+        quoteId: data.quoteId,
+        advertiserId: advertiserId,
+        amount: data.amount,
+        status: data.status || 'Pending',
+        issueDate: data.issueDate,
+        dueDate: data.dueDate,
+        notes: data.notes,
+      });
+      
+      if (!record) {
+        return res.status(500).json({ error: 'Failed to create invoice in Airtable' });
+      }
+      
+      res.json(transformInvoiceForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error creating invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to create invoice', details: errorMessage });
+    }
+  });
+
+  app.patch("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        amount: z.number().min(0).optional(),
+        status: z.enum(['Pending', 'Issued', 'Paid', 'Overdue']).optional(),
+        issueDate: z.string().optional(),
+        dueDate: z.string().optional(),
+        paymentDate: z.string().optional(),
+        notes: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await invoicesTable.updateInvoice(recordId, {
+        amount: data.amount,
+        status: data.status,
+        issueDate: data.issueDate,
+        dueDate: data.dueDate,
+        paymentDate: data.paymentDate,
+        notes: data.notes,
+      });
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      res.json(transformInvoiceForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      
+      console.error('Error updating invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found') || errorMessage.includes('update failed')) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      
+      res.status(500).json({ error: 'Failed to update invoice', details: errorMessage });
+    }
+  });
+
+  app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const recordId = req.params.id;
+      
+      if (!recordId) {
+        return res.status(400).json({ error: 'Invoice ID is required' });
+      }
+      
+      const success = await invoicesTable.deleteInvoice(recordId);
+      
+      if (!success) {
+        return res.status(404).json({ error: 'Invoice not found or deletion failed' });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (errorMessage.includes('not configured')) {
+        return res.status(503).json({ error: 'Airtable service unavailable', details: errorMessage });
+      }
+      
+      res.status(500).json({ error: 'Failed to delete invoice', details: errorMessage });
+    }
+  });
+
+  app.post("/api/invoices/:id/issue", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        issueDate: z.string().optional(),
+        dueDate: z.string().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await invoicesTable.issueInvoice(recordId, data.issueDate, data.dueDate);
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      res.json(transformInvoiceForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error issuing invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      res.status(500).json({ error: 'Failed to issue invoice', details: errorMessage });
+    }
+  });
+
+  app.post("/api/invoices/:id/pay", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        paymentDate: z.string().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await invoicesTable.markAsPaid(recordId, data.paymentDate);
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      res.json(transformInvoiceForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error marking invoice as paid:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not found')) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      res.status(500).json({ error: 'Failed to mark invoice as paid', details: errorMessage });
     }
   });
 

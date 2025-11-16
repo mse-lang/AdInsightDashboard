@@ -19,3 +19,38 @@ export interface CommunicationLog {
   sentAt?: string;
   externalId?: string;
 }
+
+export interface AirtableQuote {
+  id: string;
+  quoteNumber: number;
+  advertiserId: string | null;
+  totalAmount: number;
+  discountRate: number;
+  finalAmount: number;
+  status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+  pdfUrl?: string;
+  sentAt?: string | null;
+}
+
+export interface QuoteItem {
+  id: string;
+  quoteId: string | null;
+  adProductId: string | null;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  duration?: number | null;
+}
+
+export interface AirtableInvoice {
+  id: string;
+  invoiceNumber: number;
+  quoteId: string | null;
+  advertiserId: string | null;
+  amount: number;
+  status: 'Pending' | 'Issued' | 'Paid' | 'Overdue';
+  issueDate?: string | null;
+  dueDate?: string | null;
+  paymentDate?: string | null;
+  notes?: string;
+}
