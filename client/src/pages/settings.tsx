@@ -49,6 +49,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+interface GeneralSettings {
+  companyName: string;
+  ceoName: string;
+  companyEmail: string;
+  companyPhone: string;
+  businessNumber: string;
+  bankName: string;
+  bankAccountNumber: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -87,13 +97,11 @@ export default function Settings() {
     },
   ]);
 
-  const [generalSettings, setGeneralSettings] = useState({
-    companyName: "벤처스퀘어",
-    ceoName: "",
-    companyEmail: "ad@venturesquare.net",
-    companyPhone: "02-1234-5678",
-    businessNumber: "123-45-67890",
+  const { data: generalSettings, isLoading: settingsLoading } = useQuery<GeneralSettings>({
+    queryKey: ["/api/settings/general"],
   });
+
+  const [editedSettings, setEditedSettings] = useState<Partial<GeneralSettings>>({});
 
   const { data: pricings = [], isLoading: pricingsLoading } = useQuery<Pricing[]>({
     queryKey: ["/api/pricings"],
@@ -249,11 +257,46 @@ export default function Settings() {
     }
   };
 
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: Partial<GeneralSettings>) => {
+      const res = await apiRequest("PATCH", "/api/settings/general", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/general"] });
+      setEditedSettings({});
+      toast({
+        title: "설정 저장 완료",
+        description: "일반 설정이 성공적으로 저장되었습니다.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "저장 실패",
+        description: error.message || "설정 저장에 실패했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSaveGeneralSettings = () => {
-    toast({
-      title: "설정 저장 완료",
-      description: "일반 설정이 성공적으로 저장되었습니다.",
-    });
+    if (Object.keys(editedSettings).length > 0) {
+      updateSettingsMutation.mutate(editedSettings);
+    }
+  };
+
+  const handleSettingChange = (key: keyof GeneralSettings, value: string) => {
+    setEditedSettings(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const getCurrentSetting = (key: keyof GeneralSettings): string => {
+    if (editedSettings[key] !== undefined) {
+      return editedSettings[key]!;
+    }
+    return generalSettings?.[key] || '';
   };
 
   return (
@@ -578,54 +621,79 @@ export default function Settings() {
               <CardTitle>일반 설정</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>회사명</Label>
-                <Input 
-                  value={generalSettings.companyName}
-                  onChange={(e) => setGeneralSettings({ ...generalSettings, companyName: e.target.value })}
-                  data-testid="input-company-name" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>대표이사 이름</Label>
-                <Input 
-                  value={generalSettings.ceoName}
-                  onChange={(e) => setGeneralSettings({ ...generalSettings, ceoName: e.target.value })}
-                  placeholder="대표이사 성함을 입력하세요" 
-                  data-testid="input-ceo-name" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>대표 이메일</Label>
-                <Input 
-                  value={generalSettings.companyEmail}
-                  onChange={(e) => setGeneralSettings({ ...generalSettings, companyEmail: e.target.value })}
-                  data-testid="input-company-email" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>대표 전화번호</Label>
-                <Input 
-                  value={generalSettings.companyPhone}
-                  onChange={(e) => setGeneralSettings({ ...generalSettings, companyPhone: e.target.value })}
-                  data-testid="input-company-phone" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>사업자등록번호</Label>
-                <Input 
-                  value={generalSettings.businessNumber}
-                  onChange={(e) => setGeneralSettings({ ...generalSettings, businessNumber: e.target.value })}
-                  data-testid="input-business-number" 
-                />
-              </div>
-              <Button 
-                onClick={handleSaveGeneralSettings}
-                data-testid="button-save-settings"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                설정 저장
-              </Button>
+              {settingsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">로딩중...</div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>회사명</Label>
+                    <Input 
+                      value={getCurrentSetting('companyName')}
+                      onChange={(e) => handleSettingChange('companyName', e.target.value)}
+                      data-testid="input-company-name" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>대표이사 이름</Label>
+                    <Input 
+                      value={getCurrentSetting('ceoName')}
+                      onChange={(e) => handleSettingChange('ceoName', e.target.value)}
+                      placeholder="대표이사 성함을 입력하세요" 
+                      data-testid="input-ceo-name" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>대표 이메일</Label>
+                    <Input 
+                      value={getCurrentSetting('companyEmail')}
+                      onChange={(e) => handleSettingChange('companyEmail', e.target.value)}
+                      data-testid="input-company-email" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>대표 전화번호</Label>
+                    <Input 
+                      value={getCurrentSetting('companyPhone')}
+                      onChange={(e) => handleSettingChange('companyPhone', e.target.value)}
+                      data-testid="input-company-phone" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>사업자등록번호</Label>
+                    <Input 
+                      value={getCurrentSetting('businessNumber')}
+                      onChange={(e) => handleSettingChange('businessNumber', e.target.value)}
+                      data-testid="input-business-number" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>광고비 입금용 은행명</Label>
+                    <Input 
+                      value={getCurrentSetting('bankName')}
+                      onChange={(e) => handleSettingChange('bankName', e.target.value)}
+                      placeholder="예: 국민은행"
+                      data-testid="input-bank-name" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>광고비 입금용 통장번호</Label>
+                    <Input 
+                      value={getCurrentSetting('bankAccountNumber')}
+                      onChange={(e) => handleSettingChange('bankAccountNumber', e.target.value)}
+                      placeholder="예: 123-45-678910"
+                      data-testid="input-bank-account-number" 
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSaveGeneralSettings}
+                    disabled={Object.keys(editedSettings).length === 0 || updateSettingsMutation.isPending}
+                    data-testid="button-save-general-settings"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    설정 저장
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

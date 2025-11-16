@@ -15,6 +15,7 @@ import * as campaignsTable from "./airtable/tables/campaigns";
 import * as quotesTable from "./airtable/tables/quotes";
 import * as quoteItemsTable from "./airtable/tables/quote-items";
 import * as invoicesTable from "./airtable/tables/invoices";
+import * as settingsTable from "./airtable/tables/settings";
 import type { AgencyRecord } from "./airtable/tables/agencies";
 import type { AdvertiserRecord } from "./airtable/tables/advertisers";
 import type { CampaignRecord } from "./airtable/tables/campaigns";
@@ -1839,6 +1840,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     res.json({ success: true });
+  });
+
+  // Settings routes
+  app.get("/api/settings/general", async (req, res) => {
+    try {
+      const settings = await settingsTable.getGeneralSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching general settings:', error);
+      res.status(500).json({ error: "Failed to fetch general settings" });
+    }
+  });
+
+  app.patch("/api/settings/general", requireAuth, async (req, res) => {
+    try {
+      const settings = await settingsTable.updateGeneralSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating general settings:', error);
+      res.status(500).json({ error: "Failed to update general settings" });
+    }
   });
 
   app.get("/api/ads", async (req, res) => {
