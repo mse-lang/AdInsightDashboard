@@ -21,6 +21,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Dashboard Calendar - Navigable Calendar View** ✅
+- ✅ **Navigable Calendar Component**:
+  - Created NavigableCalendar component replacing ThreeMonthCalendar
+  - Current month displayed as Google Calendar iframe (500px height)
+  - Previous and next months shown as event list views
+  - Left/right navigation buttons to switch between months
+  - Month indicator showing "YYYY년 MM월" format
+- ✅ **Event List Views**:
+  - Event filtering by month based on startDate/endDate overlap
+  - Displays advertiser name, slot, date range, and status badge
+  - Status badges with dark mode support (부킹확정: blue, 집행중: green)
+  - Empty state message: "예약 없음"
+- ✅ **State Management**:
+  - Month/year tracking with useState
+  - React Query for calendar events data
+  - Loading and error states with user-friendly messages
+- ✅ **Responsive Layout**:
+  - 3-column grid on large screens (3-6-3 layout)
+  - Single column on mobile devices
+  - All interactive elements include data-testid attributes
+
 **2025-11-16**: **General Settings - Bank Information** ✅
 - ✅ **Bank Information Fields**:
   - Added bankName and bankAccountNumber to general settings
