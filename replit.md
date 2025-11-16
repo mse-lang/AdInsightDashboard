@@ -21,6 +21,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Pipeline Status System - Dashboard Campaign Metrics** ✅
+- ✅ **8-Stage Pipeline Status**:
+  - Implemented comprehensive pipeline status system: 문의중, 견적제시, 일정조율중, 부킹확정, 집행중, 결과보고, 세금계산서 발행 및 대금 청구, 매출 입금
+  - PipelineStatus type centralized in shared/schema.ts for type safety across frontend/backend
+  - server/airtable/types.ts now imports PipelineStatus from shared schema
+- ✅ **Dashboard Campaign Metrics**:
+  - Refactored Dashboard to display campaign-based metrics instead of advertiser-based
+  - Pipeline status counts fetched from /api/campaigns/pipeline-counts
+  - ProgressPipeline component navigation to /campaigns?pipelineStatus=... for filtered views
+- ✅ **Campaign API Enhancements**:
+  - Added GET /api/campaigns/pipeline-counts endpoint
+  - Added GET /api/campaigns/pipeline/:status endpoint
+  - Fixed critical Express route ordering bug (specific routes now before dynamic /:id route)
+  - Added getPipelineStatusCounts() and getCampaignsByPipelineStatus() to campaigns table
+- ✅ **Type Safety**:
+  - Single source of truth for PipelineStatus in shared/schema.ts
+  - StatusBadge component uses shared PipelineStatus type
+  - Proper type validation across all pipeline status operations
+
 **2025-11-16**: **CSV Upload Bug Fixes** ✅
 - ✅ **Fixed Double File Dialog**:
   - Removed duplicate label wrapper causing double click
