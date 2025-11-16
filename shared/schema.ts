@@ -2,6 +2,17 @@ import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, ind
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Pipeline Status for campaigns (8-stage advertising workflow)
+export type PipelineStatus = 
+  | '문의중'               // Inquiry
+  | '견적제시'             // Quoted
+  | '일정조율중'           // Scheduling
+  | '부킹확정'             // Booking Confirmed
+  | '집행중'               // In Progress
+  | '결과보고'             // Reporting
+  | '세금계산서 발행 및 대금 청구'  // Invoice Issued
+  | '매출 입금';          // Payment Received
+
 export const advertisers = pgTable("advertisers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),

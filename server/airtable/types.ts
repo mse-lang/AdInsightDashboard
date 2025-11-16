@@ -1,7 +1,11 @@
 import type { FieldSet, Record as AirtableRecord } from 'airtable';
+import type { PipelineStatus as SharedPipelineStatus } from '../shared/schema';
 
 // Generic Airtable record type
 export type AirtableRecordType<T extends FieldSet> = AirtableRecord<T>;
+
+// Re-export PipelineStatus from shared schema to maintain compatibility
+export type PipelineStatus = SharedPipelineStatus;
 
 // User record fields
 export interface UserFields extends FieldSet {
@@ -73,17 +77,6 @@ export interface AdProductFields extends FieldSet {
   'Unit Price': number;
   'Status': 'Active' | 'Inactive';
 }
-
-// Pipeline Status type for campaigns
-export type PipelineStatus = 
-  | '문의중'               // Inquiry
-  | '견적제시'             // Quoted
-  | '일정조율중'           // Scheduling
-  | '부킹확정'             // Booking Confirmed
-  | '집행중'               // In Progress
-  | '결과보고'             // Reporting
-  | '세금계산서 발행 및 대금 청구'  // Invoice Issued
-  | '매출 입금';          // Payment Received
 
 // Campaign record fields
 export interface CampaignFields extends FieldSet {

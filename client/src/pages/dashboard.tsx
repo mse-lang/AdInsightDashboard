@@ -8,16 +8,7 @@ import { NavigableCalendar } from "@/components/navigable-calendar";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-
-type PipelineStatus = 
-  | '문의중'
-  | '견적제시'
-  | '일정조율중'
-  | '부킹확정'
-  | '집행중'
-  | '결과보고'
-  | '세금계산서 발행 및 대금 청구'
-  | '매출 입금';
+import type { PipelineStatus } from "@shared/schema";
 
 export default function Dashboard() {
   const [hasNotification, setHasNotification] = useState(true);

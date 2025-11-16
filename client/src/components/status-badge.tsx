@@ -1,21 +1,15 @@
 import { Badge } from "@/components/ui/badge";
+import type { PipelineStatus } from "@shared/schema";
 
-export type AdStatus = 
-  | "문의중" 
-  | "견적제시" 
-  | "일정조율중" 
-  | "부킹확정" 
-  | "집행중" 
-  | "결과보고" 
-  | "세금계산서 발행 및 대금 청구" 
-  | "매출 입금";
+// Deprecated: Use PipelineStatus from @shared/schema instead
+export type AdStatus = PipelineStatus;
 
 interface StatusBadgeProps {
-  status: AdStatus;
+  status: PipelineStatus;
   count?: number;
 }
 
-const statusColors: Record<AdStatus, string> = {
+const statusColors: Record<PipelineStatus, string> = {
   "문의중": "bg-blue-100 text-blue-700 border-blue-200",
   "견적제시": "bg-purple-100 text-purple-700 border-purple-200",
   "일정조율중": "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -27,7 +21,7 @@ const statusColors: Record<AdStatus, string> = {
 };
 
 export function getStatusColor(status: string): string {
-  return statusColors[status as AdStatus] || "bg-gray-100 text-gray-700 border-gray-200";
+  return statusColors[status as PipelineStatus] || "bg-gray-100 text-gray-700 border-gray-200";
 }
 
 export function StatusBadge({ status, count }: StatusBadgeProps) {

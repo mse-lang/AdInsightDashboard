@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge, AdStatus } from "./status-badge";
+import { StatusBadge } from "./status-badge";
 import { useLocation } from "wouter";
+import type { PipelineStatus } from "@shared/schema";
 
 interface PipelineStage {
-  status: AdStatus;
+  status: PipelineStatus;
   count: number;
 }
 
@@ -14,7 +15,7 @@ interface ProgressPipelineProps {
 export function ProgressPipeline({ stages }: ProgressPipelineProps) {
   const [, setLocation] = useLocation();
 
-  const handleStageClick = (status: AdStatus) => {
+  const handleStageClick = (status: PipelineStatus) => {
     setLocation(`/campaigns?pipelineStatus=${encodeURIComponent(status)}`);
   };
 

@@ -733,6 +733,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Campaign routes - Airtable-based
+  // NOTE: Specific routes must be defined before dynamic routes to avoid path matching conflicts
+  
   app.get("/api/campaigns", async (req, res) => {
     try {
       if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
@@ -749,22 +751,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/campaigns/:id", async (req, res) => {
+  // Get pipeline status counts for dashboard
+  app.get("/api/campaigns/pipeline-counts", async (req, res) => {
     try {
       if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
         return res.status(503).json({ error: 'Airtable not configured' });
       }
 
-      const campaign = await campaignsTable.getCampaignById(req.params.id);
-      if (!campaign) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
-
-      res.json(transformCampaignForAPI(campaign));
+      const counts = await campaignsTable.getPipelineStatusCounts();
+      res.json(counts);
     } catch (error) {
-      console.error('Error fetching campaign:', error);
+      console.error('Error fetching pipeline status counts:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: 'Failed to fetch campaign', details: errorMessage });
+      res.status(500).json({ error: 'Failed to fetch pipeline status counts', details: errorMessage });
     }
   });
 
@@ -799,22 +798,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get pipeline status counts for dashboard
-  app.get("/api/campaigns/pipeline-counts", async (req, res) => {
-    try {
-      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
-        return res.status(503).json({ error: 'Airtable not configured' });
-      }
-
-      const counts = await campaignsTable.getPipelineStatusCounts();
-      res.json(counts);
-    } catch (error) {
-      console.error('Error fetching pipeline status counts:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: 'Failed to fetch pipeline status counts', details: errorMessage });
-    }
-  });
-
   // Get campaigns by pipeline status
   app.get("/api/campaigns/pipeline/:status", async (req, res) => {
     try {
@@ -829,6 +812,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching campaigns by pipeline status:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: 'Failed to fetch campaigns', details: errorMessage });
+    }
+  });
+
+  // Get campaign by ID - MUST be last among GET routes to avoid matching specific paths
+  app.get("/api/campaigns/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const campaign = await campaignsTable.getCampaignById(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      res.json(transformCampaignForAPI(campaign));
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch campaign', details: errorMessage });
     }
   });
 
