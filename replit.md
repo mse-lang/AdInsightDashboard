@@ -45,6 +45,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Phase 2 Complete** - Advertiser Management API
+- ✅ Communication Logs Airtable table functions (CRUD operations)
+- ✅ Advertiser API routes migrated to Airtable with production-ready error handling
+- ✅ Authentication guards on all mutation endpoints (POST/PATCH/DELETE)
+- ✅ Comprehensive validation with Zod (string trimming, email validation, status enums)
+- ✅ Proper HTTP status codes: 400 (validation), 404 (not found), 500 (server error), 503 (service unavailable)
+- ✅ Airtable credentials checking with graceful degradation
+- ✅ Frontend Airtable type definitions and advertiser list page
+- 📝 Ready for Phase 2 continued: Quote/billing module and Solapi integration
+
 **2025-11-16**: **Phase 1 Complete** - Foundation Layer
 - ✅ Airtable integration layer with 12-table type system
 - ✅ Google OAuth authentication with Passport.js
@@ -52,7 +62,6 @@ Preferred communication style: Simple, everyday language.
 - ✅ Automated Airtable base setup script
 - ✅ Session management with PostgreSQL
 - ✅ E2E tested: Dev login → Dashboard → Logout flow verified
-- 📝 Ready for Phase 2: Advertiser management UI and Solapi integration
 
 **Migration Strategy**:
 - Migrating from PostgreSQL-only to Airtable-primary architecture
