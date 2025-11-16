@@ -45,6 +45,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Phase 2 Complete** ✅ - Solapi Integration & Dashboard Calendar
+- ✅ **Solapi Multi-Channel Messaging**:
+  - Lazy initialization service layer (no crash when credentials missing)
+  - POST /api/solapi/send-sms with optional Airtable logging
+  - POST /api/solapi/send-kakao with pfId parameter for accurate channel targeting
+  - GET /api/solapi/balance for account balance checking
+  - Sequential bulk SMS sending (SDK-compatible implementation)
+  - Graceful fallback: messages send successfully even if Airtable logging fails
+- ✅ **Dashboard Three-Month Google Calendar**:
+  - Three distinct iframe views using dates=YYYYMMDD/YYYYMMDD parameter
+  - Current month + next 2 months (total 3 months)
+  - mj@venturesquare.net calendar with Asia/Seoul timezone
+  - Responsive grid layout (lg:grid-cols-3)
+  - Accurate month-end date calculation for each iframe
+
 **2025-11-16**: **Phase 2 Module 4 Complete** ✅ - Quote & Billing Module
 - ✅ **Production-ready** Airtable table functions: Quotes, Quote Items, Invoices (full CRUD)
 - ✅ Complete API routes with authentication guards and Airtable credential checks
@@ -56,7 +71,6 @@ Preferred communication style: Simple, everyday language.
   - Quotes: GET /api/quotes, GET /api/quotes/:id, GET /api/quotes/advertiser/:id, GET /api/quotes/status/:status, POST, PATCH, DELETE, POST /api/quotes/:id/approve
   - Quote Items: GET /api/quotes/:quoteId/items, **GET /api/quote-items/:id**, POST /api/quote-items, POST /api/quote-items/bulk, PATCH /api/quote-items/:id, DELETE /api/quote-items/:id
   - Invoices: GET /api/invoices, GET /api/invoices/:id, GET /api/invoices/quote/:id, GET /api/invoices/status/:status, GET /api/invoices/overdue, POST (with auto-advertiser), PATCH, DELETE
-- 📝 **Next**: Solapi integration for multi-channel communications (Email/SMS/KakaoTalk)
 
 **2025-11-16**: **Phase 2 Start** - Advertiser Management API
 - ✅ Communication Logs Airtable table functions (CRUD operations)
@@ -85,6 +99,13 @@ Preferred communication style: Simple, everyday language.
 - autoNumber fields must be manually added in Airtable UI or cannot be used for sorting
 - All quote/invoice list queries now sort by creation time instead of auto-generated numbers
 - Currency fields require `symbol` option (e.g., `{ precision: 0, symbol: 'KRW' }`)
+
+**Solapi Configuration**:
+- Required environment variables: SOLAPI_API_KEY, SOLAPI_API_SECRET, SOLAPI_SENDER_PHONE
+- Lazy initialization pattern prevents server crash when credentials are missing
+- KakaoTalk requires both templateId and pfId (channel ID) for accurate delivery
+- Communication logs are stored in Airtable when advertiserId is provided
+- Balance checking available via GET /api/solapi/balance endpoint
 
 ## System Architecture
 

@@ -4,7 +4,7 @@ import { ProgressPipeline } from "@/components/progress-pipeline";
 import { PerformanceChart } from "@/components/performance-chart";
 import { SalesPieChart } from "@/components/sales-pie-chart";
 import { NotificationBanner } from "@/components/notification-banner";
-import { CalendarView } from "@/components/calendar-view";
+import { ThreeMonthCalendar } from "@/components/three-month-calendar";
 import { Users, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -54,7 +54,9 @@ export default function Dashboard() {
   const totalProgressCount = useMemo(() => advertisers.length, [advertisers]);
 
   const stagesCounts = useMemo(() => {
-    const allStatuses = [
+    type AdStatus = "문의중" | "견적제시" | "일정조율중" | "부킹확정" | "집행중" | "결과보고" | "세금계산서 발행 및 대금 청구" | "매출 입금";
+    
+    const allStatuses: AdStatus[] = [
       "문의중",
       "견적제시", 
       "일정조율중",
@@ -66,7 +68,7 @@ export default function Dashboard() {
     ];
     
     return allStatuses.map(status => ({
-      status: status as const,
+      status,
       count: advertisers.filter(adv => adv.status === status).length
     }));
   }, [advertisers]);
@@ -169,7 +171,7 @@ export default function Dashboard() {
 
       <ProgressPipeline stages={mockStages} />
 
-      <CalendarView events={calendarEvents} />
+      <ThreeMonthCalendar />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PerformanceChart data={mockChartData} />

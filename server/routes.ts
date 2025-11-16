@@ -17,6 +17,7 @@ import type { AdvertiserRecord } from "./airtable/tables/advertisers";
 import type { QuoteRecord } from "./airtable/tables/quotes";
 import type { QuoteItemRecord } from "./airtable/tables/quote-items";
 import type { InvoiceRecord } from "./airtable/tables/invoices";
+import { solapiService, SolapiServiceError } from "./services/solapi.service";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
@@ -1684,6 +1685,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { metric: "이탈률", value: "42.3%", change: "-3.1%", trend: "up" },
         ]
       });
+    }
+  });
+
+  // Solapi messaging routes
+  app.post("/api/solapi/send-sms", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        to: z.string().trim().min(1, "Recipient phone number is required"),
+        text: z.string().trim().min(1, "Message text is required"),
+        from: z.string().trim().optional(),
+        advertiserId: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Send SMS via Solapi
+      const result = await solapiService.sendSMS({
+        to: data.to,
+        text: data.text,
+        from: data.from,
+      });
+      
+      // Log to Airtable if advertiserId provided
+      if (data.advertiserId && process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID) {
+        try {
+          await communicationLogsTable.createCommunicationLog({
+            advertiserId: data.advertiserId,
+            type: 'SMS',
+            content: data.text,
+            status: 'Sent',
+            externalId: result.groupId || result.messageId,
+          });
+        } catch (logError) {
+          console.warn('Failed to log SMS to Airtable:', logError);
+        }
+      }
+      
+      res.json({ success: true, result });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      if (error instanceof SolapiServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      console.error('Error sending SMS:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send SMS', details: errorMessage });
+    }
+  });
+
+  app.post("/api/solapi/send-kakao", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        to: z.string().trim().min(1, "Recipient phone number is required"),
+        pfId: z.string().trim().min(1, "PF ID (channel ID) is required"),
+        templateId: z.string().trim().min(1, "Template ID is required"),
+        variables: z.record(z.string()).optional(),
+        from: z.string().trim().optional(),
+        advertiserId: z.string().trim().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Send KakaoTalk via Solapi
+      const result = await solapiService.sendKakaoTalk({
+        to: data.to,
+        pfId: data.pfId,
+        templateId: data.templateId,
+        variables: data.variables,
+        from: data.from,
+      });
+      
+      // Log to Airtable if advertiserId provided
+      if (data.advertiserId && process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID) {
+        try {
+          const content = data.variables 
+            ? `Template: ${data.templateId}, Variables: ${JSON.stringify(data.variables)}`
+            : `Template: ${data.templateId}`;
+            
+          await communicationLogsTable.createCommunicationLog({
+            advertiserId: data.advertiserId,
+            type: 'KakaoTalk',
+            content: content,
+            status: 'Sent',
+            externalId: result.groupId || result.messageId,
+          });
+        } catch (logError) {
+          console.warn('Failed to log KakaoTalk to Airtable:', logError);
+        }
+      }
+      
+      res.json({ success: true, result });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      if (error instanceof SolapiServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      console.error('Error sending KakaoTalk:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to send KakaoTalk', details: errorMessage });
+    }
+  });
+
+  app.get("/api/solapi/balance", requireAuth, async (req, res) => {
+    try {
+      const balance = await solapiService.getBalance();
+      res.json({ balance });
+    } catch (error) {
+      if (error instanceof SolapiServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      console.error('Error checking balance:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to check balance', details: errorMessage });
     }
   });
 
