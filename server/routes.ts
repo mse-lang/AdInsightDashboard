@@ -18,6 +18,8 @@ import type { QuoteRecord } from "./airtable/tables/quotes";
 import type { QuoteItemRecord } from "./airtable/tables/quote-items";
 import type { InvoiceRecord } from "./airtable/tables/invoices";
 import { solapiService, SolapiServiceError } from "./services/solapi.service";
+import * as gmailService from "./services/gmail.service";
+import * as googleSheetsService from "./services/google-sheets.service";
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
 
@@ -2085,6 +2087,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error checking balance:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: 'Failed to check balance', details: errorMessage });
+    }
+  });
+
+  app.get("/api/inquiries/gmail", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const emails = await gmailService.getAdInquiryEmails(limit);
+      
+      res.json({ 
+        success: true, 
+        emails,
+        total: emails.length 
+      });
+    } catch (error) {
+      console.error('Error fetching Gmail inquiries:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ 
+        error: 'Failed to fetch Gmail inquiries', 
+        details: errorMessage 
+      });
+    }
+  });
+
+  app.get("/api/inquiries/survey", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const responses = await googleSheetsService.getSurveyResponses(limit);
+      
+      const advertisersRecords = await advertisersTable.getAllAdvertisers();
+      const advertisers = advertisersRecords.map(transformAdvertiserForAPI);
+      
+      const responsesWithMatch = responses.map(response => {
+        const matchedAdvertiser = advertisers.find(adv => 
+          adv.email.toLowerCase() === response.email.toLowerCase() ||
+          adv.companyName === response.companyName ||
+          adv.phone === response.phone
+        );
+        
+        return {
+          ...response,
+          matchedAdvertiserId: matchedAdvertiser?.id || null,
+          matchedAdvertiserName: matchedAdvertiser?.companyName || null,
+        };
+      });
+      
+      res.json({ 
+        success: true, 
+        responses: responsesWithMatch,
+        total: responsesWithMatch.length 
+      });
+    } catch (error) {
+      console.error('Error fetching survey responses:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ 
+        error: 'Failed to fetch survey responses', 
+        details: errorMessage 
+      });
     }
   });
 
