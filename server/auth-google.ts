@@ -35,8 +35,8 @@ if (GOOGLE_AUTH_ENABLED) {
   passport.use(
     new GoogleStrategy(
       {
-        clientID: GOOGLE_CLIENT_ID,
-        clientSecret: GOOGLE_CLIENT_SECRET,
+        clientID: GOOGLE_CLIENT_ID!,
+        clientSecret: GOOGLE_CLIENT_SECRET!,
         callbackURL: GOOGLE_CALLBACK_URL,
         scope: [
           'profile',
@@ -47,7 +47,7 @@ if (GOOGLE_AUTH_ENABLED) {
           'https://www.googleapis.com/auth/analytics.readonly',
         ],
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (accessToken: string, refreshToken: string, profile: any, done: any) => {
         try {
           const googleUid = profile.id;
           const email = profile.emails?.[0]?.value;
