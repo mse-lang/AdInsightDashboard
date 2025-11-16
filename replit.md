@@ -1,23 +1,55 @@
-# Venture Square Ad Management Dashboard
+# Venture Square Ad Management System (VS-AMS)
 
 ## Overview
 
-A Korean-language advertising management dashboard for Venture Square, built to streamline the entire advertising sales lifecycle from initial inquiry through invoicing and payment tracking. The application manages advertisers, ad slots, quotes, materials, and performance analytics with a focus on Korean business workflows and terminology.
+VS-AMS is a comprehensive advertising management system for Venture Square media company. The system streamlines the entire advertising sales lifecycle from initial inquiry through campaign execution, performance tracking, invoicing, and payment management.
 
-**Public Access**: The application is publicly accessible without authentication requirements, designed for internal use within a trusted network environment.
+**Project Status**: Migration to Airtable-based architecture in progress (Started: 2025-11-16)
+
+**Key Features**:
+- Google OAuth authentication with role-based access control
+- Airtable as primary data store with PostgreSQL for session management
+- Multi-channel communication (Solapi: Email/SMS/KakaoTalk)
+- Campaign and creative asset management
+- Automated quote generation and invoice tracking
+- Google Calendar, Gmail, and GA4 integration
+- Performance analytics and automated reporting
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
+## Project Migration Plan
+
+**Migration Approach**: Incremental transformation of existing React + Express application to Airtable-based architecture while maintaining current tech stack.
+
+**Phase 1 - Foundation** (Weeks 1-2):
+- Airtable base design and API integration
+- Google OAuth authentication system
+- User management with Airtable Users table
+
+**Phase 2 - Core Modules** (Weeks 3-4):
+- Advertiser management (Module 2)
+- Quote and billing (Module 4)
+- Solapi integration for communications
+
+**Phase 3 - Advanced Features** (Weeks 5-6):
+- Campaign and creative management (Module 3)
+- Google Calendar/Gmail integration (Module 5)
+- GA4 analytics and reporting (Module 6)
+
+**Phase 4 - Automation** (Week 7):
+- Background workers (BullMQ/Redis)
+- Automated email/SMS scheduling
+- Performance report generation
+
 ## Recent Changes
 
-**2025-10-26**: Removed authentication system
-- Disabled email-based magic link authentication
-- Application now directly accessible without login
-- Removed login and verification pages from routing
-- Authentication routes commented out in server (can be re-enabled if needed)
-- Users can access all features immediately upon visiting the application URL
+**2025-11-16**: Project restructuring initiated
+- Migrating from PostgreSQL-only to Airtable-primary architecture
+- Adding Google OAuth authentication (replacing removed email auth)
+- Implementing comprehensive requirements from VS-AMS specification
+- Preserving React + Express stack for faster development
 
 ## System Architecture
 
