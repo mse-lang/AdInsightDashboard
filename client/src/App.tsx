@@ -13,7 +13,6 @@ import { Button } from "./components/ui/button";
 import { LogOut } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import Advertisers from "@/pages/advertisers";
 import AdvertisersAirtable from "@/pages/advertisers-airtable";
 import AdvertiserDetail from "@/pages/advertiser-detail";
 import Ads from "@/pages/ads";
@@ -78,7 +77,7 @@ function MainRouter() {
           <Route path="/ads" component={Ads} />
           <Route path="/advertisers-airtable" component={AdvertisersAirtable} />
           <Route path="/advertisers/:id" component={AdvertiserDetail} />
-          <Route path="/advertisers" component={Advertisers} />
+          <Route path="/advertisers" component={AdvertisersAirtable} />
           <Route path="/ad-slots" component={AdSlots} />
           <Route path="/quotes-airtable" component={QuotesAirtable} />
           <Route path="/quotes" component={Quotes} />
