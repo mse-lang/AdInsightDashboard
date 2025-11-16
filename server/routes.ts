@@ -8,12 +8,14 @@ import jwt from "jsonwebtoken";
 import { passport, GOOGLE_AUTH_ENABLED } from "./auth-google";
 import type { UserRecord } from "./airtable/tables/users";
 import { isAdmin, canEdit, createUser } from "./airtable/tables/users";
+import * as agenciesTable from "./airtable/tables/agencies";
 import * as advertisersTable from "./airtable/tables/advertisers";
 import * as communicationLogsTable from "./airtable/tables/communication-logs";
 import * as campaignsTable from "./airtable/tables/campaigns";
 import * as quotesTable from "./airtable/tables/quotes";
 import * as quoteItemsTable from "./airtable/tables/quote-items";
 import * as invoicesTable from "./airtable/tables/invoices";
+import type { AgencyRecord } from "./airtable/tables/agencies";
 import type { AdvertiserRecord } from "./airtable/tables/advertisers";
 import type { CampaignRecord } from "./airtable/tables/campaigns";
 import type { QuoteRecord } from "./airtable/tables/quotes";
@@ -46,17 +48,36 @@ const requireAdmin = (req: any, res: any, next: any) => {
   next();
 };
 
+function transformAgencyForAPI(record: AgencyRecord) {
+  return {
+    id: record.id,
+    name: record.fields['Name'],
+    businessRegistrationNumber: record.fields['Business Registration Number'] || '',
+    contactPerson: record.fields['Contact Person'],
+    email: record.fields['Email'],
+    phone: record.fields['Phone'],
+    status: record.fields['Status'],
+    notes: record.fields['Notes'] || '',
+  };
+}
+
 function transformAdvertiserForAPI(record: AdvertiserRecord) {
   return {
     id: record.id,
     companyName: record.fields['Company Name'],
     businessNumber: record.fields['Business Number'] || '',
+    businessRegistrationNumber: record.fields['Business Registration Number'] || '',
+    bankAccountNumber: record.fields['Bank Account Number'] || '',
+    adMaterials: record.fields['Ad Materials'] || '',
     contactPerson: record.fields['Contact Person'],
+    contactPersonType: record.fields['Contact Person Type'] || 'Advertiser',
+    agencyId: record.fields['Agency']?.[0] || null,
     email: record.fields['Email'],
     phone: record.fields['Phone'],
     industry: record.fields['Industry'] || '',
     status: record.fields['Status'],
     accountManager: record.fields['Account Manager']?.[0] || null,
+    campaigns: record.fields['Campaigns'] || [],
   };
 }
 
@@ -350,6 +371,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   */
 
+  // Agency routes - Airtable-based
+  app.get("/api/agencies", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const records = await agenciesTable.getAllAgencies();
+      const agencies = records.map(transformAgencyForAPI);
+      res.json(agencies);
+    } catch (error) {
+      console.error('Error fetching agencies:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch agencies', details: errorMessage });
+    }
+  });
+
+  app.get("/api/agencies/:id", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      const record = await agenciesTable.getAgencyById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Agency not found" });
+      }
+      
+      res.json(transformAgencyForAPI(record));
+    } catch (error) {
+      console.error('Error fetching agency:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch agency', details: errorMessage });
+    }
+  });
+
+  app.post("/api/agencies", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        name: z.string().trim().min(1, "Agency name is required"),
+        contactPerson: z.string().trim().min(1, "Contact person is required"),
+        email: z.string().trim().email("Valid email is required"),
+        phone: z.string().trim().min(1, "Phone is required"),
+        businessRegistrationNumber: z.string().trim().optional(),
+        notes: z.string().trim().optional(),
+        status: z.enum(['Active', 'Inactive']).optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      if (!data.name || !data.contactPerson || !data.email || !data.phone) {
+        return res.status(400).json({ error: 'Required fields cannot be empty' });
+      }
+      
+      const record = await agenciesTable.createAgency({
+        name: data.name,
+        contactPerson: data.contactPerson,
+        email: data.email,
+        phone: data.phone,
+        businessRegistrationNumber: data.businessRegistrationNumber,
+        notes: data.notes,
+        status: data.status || 'Active',
+      });
+      
+      if (!record) {
+        return res.status(500).json({ error: 'Failed to create agency in Airtable' });
+      }
+      
+      res.json(transformAgencyForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error creating agency:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to create agency', details: errorMessage });
+    }
+  });
+
+  app.patch("/api/agencies/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const schema = z.object({
+        name: z.string().trim().min(1).optional(),
+        contactPerson: z.string().trim().min(1).optional(),
+        email: z.string().trim().email().optional(),
+        phone: z.string().trim().min(1).optional(),
+        businessRegistrationNumber: z.string().trim().optional(),
+        notes: z.string().trim().optional(),
+        status: z.enum(['Active', 'Inactive']).optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const recordId = req.params.id;
+      
+      const record = await agenciesTable.updateAgency(recordId, {
+        name: data.name,
+        contactPerson: data.contactPerson,
+        email: data.email,
+        phone: data.phone,
+        businessRegistrationNumber: data.businessRegistrationNumber,
+        notes: data.notes,
+        status: data.status,
+      });
+      
+      if (!record) {
+        return res.status(404).json({ error: 'Agency not found' });
+      }
+      
+      res.json(transformAgencyForAPI(record));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error updating agency:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to update agency', details: errorMessage });
+    }
+  });
+
+  app.delete("/api/agencies/:id", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables.' });
+      }
+      
+      const recordId = req.params.id;
+      
+      if (!recordId) {
+        return res.status(400).json({ error: 'Agency ID is required' });
+      }
+      
+      const success = await agenciesTable.deleteAgency(recordId);
+      
+      if (!success) {
+        return res.status(404).json({ error: 'Agency not found or delete failed' });
+      }
+      
+      res.json({ success: true, message: 'Agency deleted successfully (status set to Inactive)' });
+    } catch (error) {
+      console.error('Error deleting agency:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to delete agency', details: errorMessage });
+    }
+  });
+
   // Advertiser routes - Airtable-based
   app.get("/api/advertisers", async (req, res) => {
     try {
@@ -400,9 +576,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({
         companyName: z.string().trim().min(1, "Company name is required"),
         contactPerson: z.string().trim().min(1, "Contact person is required"),
+        contactPersonType: z.enum(['Advertiser', 'Agency']),
         email: z.string().trim().email("Valid email is required"),
         phone: z.string().trim().min(1, "Phone is required"),
         businessNumber: z.string().trim().optional(),
+        businessRegistrationNumber: z.string().trim().optional(),
+        bankAccountNumber: z.string().trim().optional(),
+        adMaterials: z.string().trim().optional(),
+        agencyId: z.string().trim().optional(),
         industry: z.string().trim().optional(),
         status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
       });
@@ -416,9 +597,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const record = await advertisersTable.createAdvertiser({
         companyName: data.companyName,
         contactPerson: data.contactPerson,
+        contactPersonType: data.contactPersonType,
         email: data.email,
         phone: data.phone,
         businessNumber: data.businessNumber,
+        businessRegistrationNumber: data.businessRegistrationNumber,
+        bankAccountNumber: data.bankAccountNumber,
+        adMaterials: data.adMaterials,
+        agencyId: data.agencyId,
         industry: data.industry,
         status: data.status || 'Lead',
       });
@@ -448,9 +634,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({
         companyName: z.string().trim().min(1).optional(),
         contactPerson: z.string().trim().min(1).optional(),
+        contactPersonType: z.enum(['Advertiser', 'Agency']).optional(),
         email: z.string().trim().email().optional(),
         phone: z.string().trim().min(1).optional(),
         businessNumber: z.string().trim().optional(),
+        businessRegistrationNumber: z.string().trim().optional(),
+        bankAccountNumber: z.string().trim().optional(),
+        adMaterials: z.string().trim().optional(),
+        agencyId: z.string().trim().optional(),
         industry: z.string().trim().optional(),
         status: z.enum(['Lead', 'Active', 'Inactive']).optional(),
       });
@@ -461,9 +652,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const record = await advertisersTable.updateAdvertiser(recordId, {
         companyName: data.companyName,
         contactPerson: data.contactPerson,
+        contactPersonType: data.contactPersonType,
         email: data.email,
         phone: data.phone,
         businessNumber: data.businessNumber,
+        businessRegistrationNumber: data.businessRegistrationNumber,
+        bankAccountNumber: data.bankAccountNumber,
+        adMaterials: data.adMaterials,
+        agencyId: data.agencyId,
         industry: data.industry,
         status: data.status,
       });
