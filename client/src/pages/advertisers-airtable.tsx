@@ -247,11 +247,35 @@ export default function AdvertisersAirtable() {
   };
 
   const handleDownloadCSV = () => {
-    const headers = ["회사명", "사업자번호", "담당자", "이메일", "전화번호", "업종", "상태"];
+    const headers = [
+      "광고주",
+      "사업자번호",
+      "사업자등록번호",
+      "계좌번호",
+      "광고소재",
+      "담당자",
+      "담당자구분",
+      "에이전시",
+      "이메일",
+      "전화번호",
+      "업종",
+      "상태"
+    ];
+    
+    const contactPersonTypeLabels = {
+      Advertiser: "광고주",
+      Agency: "에이전시"
+    };
+    
     const rows = filteredAdvertisers.map(a => [
       a.companyName,
       a.businessNumber || "",
+      a.businessRegistrationNumber || "",
+      a.bankAccountNumber || "",
+      a.adMaterials || "",
       a.contactPerson,
+      contactPersonTypeLabels[a.contactPersonType],
+      a.agencyName || "",
       a.email,
       a.phone,
       a.industry || "",
@@ -279,7 +303,7 @@ export default function AdvertisersAirtable() {
     });
   };
 
-  const handleUploadCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -292,26 +316,69 @@ export default function AdvertisersAirtable() {
           throw new Error("CSV 파일이 비어있거나 형식이 올바르지 않습니다");
         }
 
+        // Fetch agencies to map names to IDs
+        const agenciesResponse = await apiRequest("GET", "/api/agencies");
+        const allAgencies = agenciesResponse as AirtableAgency[];
+
         const dataLines = lines.slice(1);
         let successCount = 0;
         let errorCount = 0;
 
+        const contactPersonTypeLabels = {
+          "광고주": "Advertiser" as const,
+          "에이전시": "Agency" as const
+        };
+
         for (const line of dataLines) {
           const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-          if (!matches || matches.length < 7) continue;
+          if (!matches || matches.length < 12) {
+            console.warn("Skipping invalid line:", line);
+            errorCount++;
+            continue;
+          }
 
           const values = matches.map(v => v.replace(/^"(.*)"$/, '$1').trim());
-          const [companyName, businessNumber, contactPerson, email, phone, industry, statusLabel] = values;
+          const [
+            companyName,
+            businessNumber,
+            businessRegistrationNumber,
+            bankAccountNumber,
+            adMaterials,
+            contactPerson,
+            contactPersonTypeLabel,
+            agencyName,
+            email,
+            phone,
+            industry,
+            statusLabel
+          ] = values;
 
           const statusKey = Object.entries(statusLabels).find(
             ([, label]) => label === statusLabel
           )?.[0] as "Lead" | "Active" | "Inactive" | undefined;
 
+          const contactPersonType = contactPersonTypeLabels[contactPersonTypeLabel as keyof typeof contactPersonTypeLabels] || "Advertiser";
+
+          // Find agency ID by name if agency name is provided
+          let agencyId: string | undefined;
+          if (agencyName && contactPersonType === "Agency") {
+            const agency = allAgencies.find(a => a.name === agencyName);
+            agencyId = agency?.id;
+            if (!agency) {
+              console.warn(`Agency not found: ${agencyName}`);
+            }
+          }
+
           try {
             await apiRequest("POST", "/api/advertisers", {
               companyName,
               businessNumber: businessNumber || undefined,
+              businessRegistrationNumber: businessRegistrationNumber || undefined,
+              bankAccountNumber: bankAccountNumber || undefined,
+              adMaterials: adMaterials || undefined,
               contactPerson,
+              contactPersonType,
+              agencyId,
               email,
               phone,
               industry: industry || undefined,
