@@ -372,6 +372,38 @@ export default function AdvertisersAirtable() {
           throw new Error("CSV 파일이 비어있거나 형식이 올바르지 않습니다");
         }
 
+        // Validate CSV header
+        const expectedHeaders = [
+          "광고주",
+          "사업자번호",
+          "사업자등록번호",
+          "계좌번호",
+          "광고소재",
+          "담당자",
+          "담당자구분",
+          "에이전시",
+          "이메일",
+          "전화번호",
+          "업종",
+          "상태"
+        ];
+        
+        const headerLine = parseCSVLine(lines[0]);
+        const headersMatch = expectedHeaders.every((header, index) => 
+          headerLine[index] === header
+        );
+        
+        if (!headersMatch) {
+          const receivedHeaders = headerLine.join(", ");
+          const expectedHeadersList = expectedHeaders.join(", ");
+          throw new Error(
+            `CSV 헤더가 올바르지 않습니다.\n\n` +
+            `예상 헤더: ${expectedHeadersList}\n\n` +
+            `받은 헤더: ${receivedHeaders}\n\n` +
+            `CSV 다운로드 버튼으로 샘플 파일을 받아서 확인해주세요.`
+          );
+        }
+
         // Fetch agencies to map names to IDs (if fails, continue without agency mapping)
         let allAgencies: AirtableAgency[] = [];
         try {
@@ -384,19 +416,26 @@ export default function AdvertisersAirtable() {
         const dataLines = lines.slice(1);
         let successCount = 0;
         let errorCount = 0;
+        const errorDetails: string[] = [];
 
         const contactPersonTypeLabels = {
           "광고주": "Advertiser" as const,
           "에이전시": "Agency" as const
         };
 
-        for (const line of dataLines) {
+        for (let i = 0; i < dataLines.length; i++) {
+          const line = dataLines[i];
+          const rowNumber = i + 2; // +2 because: +1 for header, +1 for 0-indexed
           const values = parseCSVLine(line);
+          
           if (values.length < 12) {
-            console.warn("Skipping invalid line (expected 12 fields, got " + values.length + "):", line);
+            const errorMsg = `행 ${rowNumber}: 컬럼 수 부족 (12개 필요, ${values.length}개 존재)`;
+            console.warn(errorMsg);
+            errorDetails.push(errorMsg);
             errorCount++;
             continue;
           }
+          
           const [
             companyName,
             businessNumber,
@@ -411,6 +450,44 @@ export default function AdvertisersAirtable() {
             industry,
             statusLabel
           ] = values;
+          
+          // Validate required fields before API call
+          const trimmedCompanyName = companyName.trim();
+          const trimmedContactPerson = contactPerson.trim();
+          const trimmedEmail = email.trim();
+          const trimmedPhone = phone.trim();
+          
+          if (!trimmedCompanyName) {
+            const errorMsg = `행 ${rowNumber}: 광고주명이 비어있습니다`;
+            console.warn(errorMsg);
+            errorDetails.push(errorMsg);
+            errorCount++;
+            continue;
+          }
+          
+          if (!trimmedContactPerson) {
+            const errorMsg = `행 ${rowNumber}: 담당자명이 비어있습니다`;
+            console.warn(errorMsg);
+            errorDetails.push(errorMsg);
+            errorCount++;
+            continue;
+          }
+          
+          if (!trimmedEmail) {
+            const errorMsg = `행 ${rowNumber}: 이메일이 비어있습니다`;
+            console.warn(errorMsg);
+            errorDetails.push(errorMsg);
+            errorCount++;
+            continue;
+          }
+          
+          if (!trimmedPhone) {
+            const errorMsg = `행 ${rowNumber}: 전화번호가 비어있습니다`;
+            console.warn(errorMsg);
+            errorDetails.push(errorMsg);
+            errorCount++;
+            continue;
+          }
 
           const statusKey = Object.entries(statusLabels).find(
             ([, label]) => label === statusLabel
@@ -430,32 +507,46 @@ export default function AdvertisersAirtable() {
 
           try {
             await apiRequest("POST", "/api/advertisers", {
-              companyName: companyName.trim(),
+              companyName: trimmedCompanyName,
               businessNumber: businessNumber.trim() || undefined,
               businessRegistrationNumber: businessRegistrationNumber.trim() || undefined,
               bankAccountNumber: bankAccountNumber.trim() || undefined,
               adMaterials: adMaterials.trim() || undefined,
-              contactPerson: contactPerson.trim(),
+              contactPerson: trimmedContactPerson,
               contactPersonType,
               agencyId: agencyId || undefined,
-              email: email.trim(),
-              phone: phone.trim(),
+              email: trimmedEmail,
+              phone: trimmedPhone,
               industry: industry.trim() || undefined,
               status: statusKey || "Lead",
             });
             successCount++;
-          } catch (error) {
-            console.error("Failed to create advertiser:", error);
+          } catch (error: any) {
+            const errorMsg = `행 ${rowNumber} (${trimmedCompanyName}): ${error.error || error.message || '알 수 없는 오류'}`;
+            console.error(errorMsg, error);
+            errorDetails.push(errorMsg);
             errorCount++;
           }
         }
 
         queryClient.invalidateQueries({ queryKey: ["/api/advertisers"] });
         
-        toast({
-          title: "CSV 업로드 완료",
-          description: `${successCount}개 성공, ${errorCount}개 실패`,
-        });
+        if (errorCount > 0 && errorDetails.length > 0) {
+          const maxErrorsToShow = 5;
+          const errorSummary = errorDetails.slice(0, maxErrorsToShow).join('\n');
+          const moreErrors = errorDetails.length > maxErrorsToShow ? `\n... 외 ${errorDetails.length - maxErrorsToShow}개 에러` : '';
+          
+          toast({
+            title: `CSV 업로드 완료 (${successCount}개 성공, ${errorCount}개 실패)`,
+            description: errorSummary + moreErrors,
+            variant: errorCount > successCount ? "destructive" : "default",
+          });
+        } else {
+          toast({
+            title: "CSV 업로드 완료",
+            description: `${successCount}개의 광고주를 성공적으로 등록했습니다.`,
+          });
+        }
       } catch (error: any) {
         toast({
           title: "CSV 업로드 실패",
