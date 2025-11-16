@@ -27,6 +27,7 @@ import type { AdProductRecord } from "./airtable/tables/ad-products";
 import { solapiService, SolapiServiceError } from "./services/solapi.service";
 import * as gmailService from "./services/gmail.service";
 import * as googleSheetsService from "./services/google-sheets.service";
+import * as googleCalendarService from "./services/google-calendar.service";
 import * as taxInvoicesTable from "./airtable/tables/tax-invoices";
 import { getBarobillClient } from "./barobill/client";
 import type { TaxInvoiceData } from "./barobill/types";
@@ -951,6 +952,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.status(500).json({ error: 'Failed to delete campaign', details: errorMessage });
+    }
+  });
+
+  // Get campaign comprehensive details
+  app.get("/api/campaigns/:id/details", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const campaign = await campaignsTable.getCampaignById(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      // Get advertiser info
+      let advertiser: AdvertiserRecord | null = null;
+      if (campaign.fields['Advertiser']?.length > 0) {
+        advertiser = await advertisersTable.getAdvertiserById(campaign.fields['Advertiser'][0]);
+      }
+
+      // Get ad products info
+      const adProducts: AdProductRecord[] = [];
+      if (campaign.fields['Ad Products']?.length > 0) {
+        for (const productId of campaign.fields['Ad Products']) {
+          const product = await adProductsTable.getAdProductById(productId);
+          if (product) {
+            adProducts.push(product);
+          }
+        }
+      }
+
+      // Format comprehensive info
+      const comprehensiveInfo = googleCalendarService.formatCampaignDescription(
+        campaign,
+        advertiser,
+        adProducts
+      );
+
+      res.json({
+        campaign: transformCampaignForAPI(campaign),
+        advertiser: advertiser ? transformAdvertiserForAPI(advertiser) : null,
+        adProducts: adProducts.map(transformAdProductForAPI),
+        comprehensiveInfo,
+      });
+    } catch (error) {
+      console.error('Error getting campaign details:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to get campaign details', details: errorMessage });
+    }
+  });
+
+  // Add campaign to Google Calendar
+  app.post("/api/campaigns/:id/add-to-calendar", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+
+      const campaign = await campaignsTable.getCampaignById(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      // Check if already added to calendar
+      if (campaign.fields['Google Calendar ID']) {
+        return res.status(400).json({ 
+          error: '이미 캘린더에 등록된 캠페인입니다.',
+          calendarId: campaign.fields['Google Calendar ID']
+        });
+      }
+
+      // Get advertiser info
+      let advertiser: AdvertiserRecord | null = null;
+      if (campaign.fields['Advertiser']?.length > 0) {
+        advertiser = await advertisersTable.getAdvertiserById(campaign.fields['Advertiser'][0]);
+      }
+
+      // Get ad products info
+      const adProducts: AdProductRecord[] = [];
+      if (campaign.fields['Ad Products']?.length > 0) {
+        for (const productId of campaign.fields['Ad Products']) {
+          const product = await adProductsTable.getAdProductById(productId);
+          if (product) {
+            adProducts.push(product);
+          }
+        }
+      }
+
+      // Create calendar event
+      const calendarEvent = await googleCalendarService.createCampaignEvent(
+        campaign,
+        advertiser,
+        adProducts,
+        'primary'
+      );
+
+      // Update campaign with calendar ID
+      const updatedCampaign = await campaignsTable.updateCampaign(req.params.id, {
+        googleCalendarId: calendarEvent.id,
+      });
+
+      res.json({
+        success: true,
+        calendarEvent: {
+          id: calendarEvent.id,
+          summary: calendarEvent.summary,
+          htmlLink: calendarEvent.htmlLink,
+        },
+        campaign: transformCampaignForAPI(updatedCampaign),
+      });
+    } catch (error) {
+      console.error('Error adding campaign to calendar:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('not connected') || errorMessage.includes('Calendar')) {
+        return res.status(503).json({ 
+          error: 'Google Calendar 연결이 필요합니다.',
+          details: errorMessage 
+        });
+      }
+
+      res.status(500).json({ error: 'Failed to add campaign to calendar', details: errorMessage });
     }
   });
 
