@@ -28,6 +28,7 @@ import AdCalendar from "@/pages/calendar";
 import Materials from "@/pages/materials";
 import Settings from "@/pages/settings";
 import Analytics from "@/pages/analytics";
+import Inquiries from "@/pages/inquiries";
 import Login from "@/pages/login";
 
 function PublicRouter() {
@@ -85,6 +86,7 @@ function MainRouter() {
           <Route path="/analytics" component={Analytics} />
           <Route path="/materials" component={Materials} />
           <Route path="/settings" component={Settings} />
+          <Route path="/inquiries" component={Inquiries} />
           <Route path="/inquiry" component={Inquiry} />
           <Route component={NotFound} />
         </Switch>

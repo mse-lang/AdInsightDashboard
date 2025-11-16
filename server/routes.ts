@@ -2090,7 +2090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inquiries/gmail", requireAuth, async (req, res) => {
+  app.get("/api/inquiries/gmail", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const emails = await gmailService.getAdInquiryEmails(limit);
@@ -2110,7 +2110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inquiries/survey", requireAuth, async (req, res) => {
+  app.get("/api/inquiries/survey", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const responses = await googleSheetsService.getSurveyResponses(limit);
@@ -2119,11 +2119,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const advertisers = advertisersRecords.map(transformAdvertiserForAPI);
       
       const responsesWithMatch = responses.map(response => {
-        const matchedAdvertiser = advertisers.find(adv => 
-          adv.email.toLowerCase() === response.email.toLowerCase() ||
-          adv.companyName === response.companyName ||
-          adv.phone === response.phone
-        );
+        const normalizePhone = (phone: string | undefined) => (phone || '').replace(/[^0-9]/g, '');
+        
+        const matchedAdvertiser = advertisers.find(adv => {
+          const emailMatch = adv.email?.toLowerCase() === response.email?.toLowerCase();
+          const companyMatch = adv.companyName === response.companyName;
+          const advPhone = normalizePhone(adv.phone);
+          const respPhone = normalizePhone(response.phone);
+          const phoneMatch = advPhone && respPhone && advPhone === respPhone;
+          
+          return emailMatch || companyMatch || phoneMatch;
+        });
         
         return {
           ...response,
