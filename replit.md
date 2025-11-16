@@ -21,6 +21,34 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Barobill Tax Invoice Integration** ✅
+- ✅ **Barobill API Integration**:
+  - Implemented SOAP client for Barobill tax invoice API
+  - Created server/barobill/client.ts with issueTaxInvoice, getTaxInvoiceStatus, getTaxInvoicePrintURL, checkBusinessStatus methods
+  - Configured BAROBILL_CERT_KEY and BAROBILL_CORP_NUM environment secrets
+- ✅ **Tax Invoice API Endpoints**:
+  - GET /api/tax-invoices - List all tax invoices
+  - GET /api/tax-invoices/:id - Get single tax invoice
+  - GET /api/advertisers/:advertiserId/tax-invoices - Get tax invoices by advertiser
+  - POST /api/tax-invoices - Create and issue tax invoice via Barobill
+  - GET /api/tax-invoices/:id/status - Check Barobill status
+  - POST /api/barobill/check-business - Verify business registration
+- ✅ **Tax Invoice UI**:
+  - Created comprehensive tax invoice management page (client/src/pages/tax-invoices.tsx)
+  - Form includes all Barobill required fields: corpNum, corpName, ceoName, addr, bizType, bizClass, contactName, telNum, email
+  - Multi-item support with dynamic add/remove functionality
+  - Automatic calculation of supplyPrice and tax (10%)
+  - Status badges: 작성중, 발행완료, 발행실패
+- ✅ **Data Normalization**:
+  - Server-side conversion of invoiceType/taxType display labels to Barobill codes ("세금계산서" → "01")
+  - Date format conversion (yyyy-MM-dd → YYYYMMDD)
+  - Numeric field type coercion (qty, unitPrice, supplyPrice, tax)
+  - Validation of required issuer/recipient fields
+- ✅ **Known Limitations**:
+  - Frontend numeric inputs send strings; server coerces to numbers
+  - Recommended future enhancement: Zod schema validation for stronger type safety
+  - Recommended future enhancement: react-hook-form for better form validation
+
 **2025-11-16**: **Survey Response Navigation** ✅
 - ✅ **Google Sheets Integration Fix**:
   - Fixed Google Sheets API range parsing error by adding single quotes around sheet name

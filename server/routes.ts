@@ -2953,14 +2953,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: '필수 필드가 누락되었습니다' });
       }
 
-      const mgtKey = `INV${Date.now()}`;
-
       const parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
       const parsedIssuer = typeof issuerInfo === 'string' ? JSON.parse(issuerInfo) : issuerInfo;
       const parsedRecipient = typeof recipientInfo === 'string' ? JSON.parse(recipientInfo) : recipientInfo;
 
-      const supplyPriceTotal = parsedItems.reduce((sum: number, item: any) => sum + item.supplyPrice, 0);
-      const taxTotal = parsedItems.reduce((sum: number, item: any) => sum + item.tax, 0);
+      if (!parsedIssuer.corpNum || !parsedIssuer.corpName || !parsedIssuer.bizType || !parsedIssuer.bizClass || !parsedIssuer.telNum) {
+        return res.status(400).json({ error: '공급자 필수 정보가 누락되었습니다' });
+      }
+
+      if (!parsedRecipient.corpNum || !parsedRecipient.corpName || !parsedRecipient.bizType || !parsedRecipient.bizClass || !parsedRecipient.telNum) {
+        return res.status(400).json({ error: '공급받는자 필수 정보가 누락되었습니다' });
+      }
+
+      if (!parsedItems || parsedItems.length === 0) {
+        return res.status(400).json({ error: '품목 정보가 누락되었습니다' });
+      }
+
+      const mgtKey = `INV${Date.now()}`;
+
+
+      const barobillItems = parsedItems.map((item: any) => {
+        const qty = Number(item.qty) || 1;
+        const unitPrice = Number(item.unitPrice) || 0;
+        const supplyPrice = Number(item.supplyPrice) || (qty * unitPrice);
+        const tax = Number(item.tax) || Math.round(supplyPrice * 0.1);
+        const itemDate = item.purchaseDate || writeDate;
+        
+        return {
+          purchaseDate: typeof itemDate === 'string' ? itemDate.replace(/-/g, '') : writeDate.replace(/-/g, ''),
+          itemName: item.itemName || '',
+          spec: item.spec || '',
+          qty,
+          unitPrice,
+          supplyPrice,
+          tax,
+          remark: item.remark || '',
+        };
+      });
+
+      const supplyPriceTotal = barobillItems.reduce((sum: number, item: any) => sum + item.supplyPrice, 0);
+      const taxTotal = barobillItems.reduce((sum: number, item: any) => sum + item.tax, 0);
       const totalAmount = supplyPriceTotal + taxTotal;
 
       const invoiceData: TaxInvoiceData = {
@@ -2974,7 +3006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         remark1: remark,
         invoicer: parsedIssuer,
         invoicee: parsedRecipient,
-        items: parsedItems,
+        items: barobillItems,
       };
 
       const taxInvoice = await taxInvoicesTable.createTaxInvoice({

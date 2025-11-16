@@ -23,6 +23,7 @@ import Inquiry from "@/pages/inquiry";
 import Quotes from "@/pages/quotes";
 import QuotesAirtable from "@/pages/quotes-airtable";
 import Invoices from "@/pages/invoices";
+import TaxInvoices from "@/pages/tax-invoices";
 import Campaigns from "@/pages/campaigns";
 import Agencies from "@/pages/agencies";
 import AdCalendar from "@/pages/calendar";
@@ -82,6 +83,7 @@ function MainRouter() {
           <Route path="/quotes-airtable" component={QuotesAirtable} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/invoices" component={Invoices} />
+          <Route path="/tax-invoices" component={TaxInvoices} />
           <Route path="/campaigns" component={Campaigns} />
           <Route path="/agencies" component={Agencies} />
           <Route path="/calendar" component={AdCalendar} />
