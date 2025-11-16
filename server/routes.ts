@@ -2543,10 +2543,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 20;
       const emails = await gmailService.getAdInquiryEmails(limit);
       
+      const [advertisersRecords, communicationLogs] = await Promise.all([
+        advertisersTable.getAllAdvertisers(),
+        communicationLogsTable.getAllCommunicationLogs()
+      ]);
+      
+      const advertisers = advertisersRecords.map(transformAdvertiserForAPI);
+      
+      const emailsWithMatch = emails.map(email => {
+        const manualLink = communicationLogs.find(log => {
+          const externalId = log.fields['External ID'] || '';
+          return externalId === email.id;
+        });
+
+        let matchedAdvertiser = null;
+        if (manualLink && manualLink.fields['Advertiser']) {
+          const advertiserId = Array.isArray(manualLink.fields['Advertiser']) 
+            ? manualLink.fields['Advertiser'][0] 
+            : manualLink.fields['Advertiser'];
+          
+          matchedAdvertiser = advertisers.find(adv => adv.id === advertiserId);
+        }
+        
+        return {
+          ...email,
+          matchedAdvertiserId: matchedAdvertiser?.id || null,
+          matchedAdvertiserName: matchedAdvertiser?.companyName || null,
+        };
+      });
+      
       res.json({ 
         success: true, 
-        emails,
-        total: emails.length 
+        emails: emailsWithMatch,
+        total: emailsWithMatch.length 
       });
     } catch (error) {
       console.error('Error fetching Gmail inquiries:', error);
@@ -2563,21 +2592,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 10;
       const responses = await googleSheetsService.getSurveyResponses(limit);
       
-      const advertisersRecords = await advertisersTable.getAllAdvertisers();
+      const [advertisersRecords, communicationLogs] = await Promise.all([
+        advertisersTable.getAllAdvertisers(),
+        communicationLogsTable.getAllCommunicationLogs()
+      ]);
+      
       const advertisers = advertisersRecords.map(transformAdvertiserForAPI);
       
       const responsesWithMatch = responses.map(response => {
         const normalizePhone = (phone: string | undefined) => (phone || '').replace(/[^0-9]/g, '');
         
-        const matchedAdvertiser = advertisers.find(adv => {
-          const emailMatch = adv.email?.toLowerCase() === response.email?.toLowerCase();
-          const companyMatch = adv.companyName === response.companyName;
-          const advPhone = normalizePhone(adv.phone);
-          const respPhone = normalizePhone(response.phone);
-          const phoneMatch = advPhone && respPhone && advPhone === respPhone;
-          
-          return emailMatch || companyMatch || phoneMatch;
+        const manualLink = communicationLogs.find(log => {
+          const externalId = log.fields['External ID'] || '';
+          return externalId === `survey_${response.email}_${response.companyName}`;
         });
+
+        let matchedAdvertiser = null;
+        if (manualLink && manualLink.fields['Advertiser']) {
+          const advertiserId = Array.isArray(manualLink.fields['Advertiser']) 
+            ? manualLink.fields['Advertiser'][0] 
+            : manualLink.fields['Advertiser'];
+          
+          matchedAdvertiser = advertisers.find(adv => adv.id === advertiserId);
+        }
+
+        if (!matchedAdvertiser) {
+          matchedAdvertiser = advertisers.find(adv => {
+            const emailMatch = adv.email?.toLowerCase() === response.email?.toLowerCase();
+            const companyMatch = adv.companyName === response.companyName;
+            const advPhone = normalizePhone(adv.phone);
+            const respPhone = normalizePhone(response.phone);
+            const phoneMatch = advPhone && respPhone && advPhone === respPhone;
+            
+            return emailMatch || companyMatch || phoneMatch;
+          });
+        }
         
         return {
           ...response,
@@ -2793,6 +2842,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({
         error: 'Failed to fetch dashboard metrics',
+        details: errorMessage
+      });
+    }
+  });
+
+  app.post("/api/inquiries/link-advertiser", async (req, res) => {
+    try {
+      const { advertiserId, inquiryType, emailData, surveyData } = req.body;
+
+      if (!advertiserId || !inquiryType) {
+        return res.status(400).json({ error: 'advertiserId and inquiryType are required' });
+      }
+
+      if (inquiryType !== 'gmail' && inquiryType !== 'survey') {
+        return res.status(400).json({ error: 'inquiryType must be "gmail" or "survey"' });
+      }
+
+      let logData: any = {
+        advertiserId,
+        type: inquiryType === 'gmail' ? 'Inbound Email' as const : 'Inbound Email' as const,
+        content: '',
+        status: 'Read' as const,
+      };
+
+      if (inquiryType === 'gmail' && emailData) {
+        logData.subject = emailData.subject || '(제목 없음)';
+        logData.content = emailData.snippet || emailData.subject || 'Gmail 문의';
+        logData.externalId = emailData.id;
+      } else if (inquiryType === 'survey' && surveyData) {
+        logData.subject = `설문 응답: ${surveyData.companyName}`;
+        logData.content = `회사명: ${surveyData.companyName}\n담당자: ${surveyData.contactPerson}\n이메일: ${surveyData.email}\n전화: ${surveyData.phone}`;
+        logData.externalId = `survey_${surveyData.email}_${surveyData.companyName}`;
+        if (surveyData.adBudget) {
+          logData.content += `\n예산: ${surveyData.adBudget}`;
+        }
+        if (surveyData.adType) {
+          logData.content += `\n광고 유형: ${surveyData.adType}`;
+        }
+      }
+
+      const commLog = await communicationLogsTable.createCommunicationLog(logData);
+
+      res.json({ 
+        success: true, 
+        message: '광고주와 문의가 성공적으로 연결되었습니다',
+        communicationLogId: commLog.id
+      });
+    } catch (error) {
+      console.error('Error linking inquiry to advertiser:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({
+        error: 'Failed to link inquiry to advertiser',
         details: errorMessage
       });
     }

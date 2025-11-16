@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, FileText, Clock, Building, Phone, User, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Mail, FileText, Clock, Building, Phone, User, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface InquiryStats {
   total: number;
@@ -25,6 +29,8 @@ interface GmailMessage {
   date: string;
   hasAttachments: boolean;
   labels: string[];
+  matchedAdvertiserId: string | null;
+  matchedAdvertiserName: string | null;
 }
 
 interface SurveyResponse {
@@ -43,6 +49,14 @@ interface SurveyResponse {
 
 export default function Inquiries() {
   const [activeTab, setActiveTab] = useState("gmail");
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<string>("");
+  const [selectedInquiry, setSelectedInquiry] = useState<{
+    type: 'gmail' | 'survey';
+    data: any;
+  } | null>(null);
+  
+  const { toast } = useToast();
 
   const { data: gmailData, isLoading: gmailLoading } = useQuery<{
     success: boolean;
@@ -69,12 +83,83 @@ export default function Inquiries() {
     queryKey: ["/api/inquiries/stats"],
   });
 
+  const { data: advertisersData } = useQuery<{
+    success: boolean;
+    advertisers: Array<{
+      id: string;
+      companyName: string;
+      email: string;
+      phone: string;
+      status: string;
+    }>;
+  }>({
+    queryKey: ["/api/advertisers"],
+  });
+
+  const linkMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest("/api/inquiries/link-advertiser", {
+        method: "POST",
+        body: JSON.stringify(data)
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inquiries/survey"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inquiries/gmail"] });
+      toast({
+        title: "성공",
+        description: "광고주와 문의가 성공적으로 연결되었습니다"
+      });
+      setLinkDialogOpen(false);
+      setSelectedAdvertiserId("");
+      setSelectedInquiry(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "오류",
+        description: error.message || "광고주 연결에 실패했습니다",
+        variant: "destructive"
+      });
+    }
+  });
+
   const emails = gmailData?.emails || [];
   const surveyResponses = surveyData?.responses || [];
+  const advertisers = advertisersData?.advertisers || [];
   const stats = statsData || {
     total: { total: 0, lastWeek: 0, lastMonth: 0 },
     gmail: { total: 0, lastWeek: 0, lastMonth: 0 },
     survey: { total: 0, lastWeek: 0, lastMonth: 0 }
+  };
+
+  const handleLinkAdvertiser = () => {
+    if (!selectedAdvertiserId || !selectedInquiry) {
+      toast({
+        title: "오류",
+        description: "광고주를 선택해주세요",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const linkData: any = {
+      advertiserId: selectedAdvertiserId,
+      inquiryType: selectedInquiry.type,
+    };
+
+    if (selectedInquiry.type === 'gmail') {
+      linkData.emailData = selectedInquiry.data;
+    } else {
+      linkData.surveyData = selectedInquiry.data;
+    }
+
+    linkMutation.mutate(linkData);
+  };
+
+  const openLinkDialog = (type: 'gmail' | 'survey', data: any) => {
+    setSelectedInquiry({ type, data });
+    setSelectedAdvertiserId("");
+    setLinkDialogOpen(true);
   };
 
   return (
@@ -230,20 +315,41 @@ export default function Inquiries() {
                   <p className="text-sm text-muted-foreground mb-4">
                     {email.snippet || "(내용 없음)"}
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      window.open(
-                        `https://mail.google.com/mail/u/0/#inbox/${email.id}`,
-                        "_blank"
-                      )
-                    }
-                    data-testid={`button-view-email-${email.id}`}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-2" />
-                    Gmail에서 보기
-                  </Button>
+                  {email.matchedAdvertiserName && (
+                    <div className="mb-4 p-3 bg-muted rounded-md">
+                      <p className="text-sm">
+                        <span className="font-medium text-primary">
+                          기존 광고주와 매칭됨:
+                        </span>{" "}
+                        {email.matchedAdvertiserName}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        window.open(
+                          `https://mail.google.com/mail/u/0/#inbox/${email.id}`,
+                          "_blank"
+                        )
+                      }
+                      data-testid={`button-view-email-${email.id}`}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-2" />
+                      Gmail에서 보기
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => openLinkDialog('gmail', email)}
+                      data-testid={`button-link-email-${email.id}`}
+                    >
+                      <LinkIcon className="h-3 w-3 mr-2" />
+                      광고주 연결
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))
@@ -366,7 +472,7 @@ export default function Inquiries() {
                     </div>
                   )}
 
-                  <div className="pt-3 border-t">
+                  <div className="pt-3 border-t flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -381,6 +487,15 @@ export default function Inquiries() {
                       <ExternalLink className="h-3 w-3 mr-2" />
                       Google Sheets에서 보기
                     </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => openLinkDialog('survey', response)}
+                      data-testid={`button-link-survey-${index}`}
+                    >
+                      <LinkIcon className="h-3 w-3 mr-2" />
+                      광고주 연결
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -388,6 +503,61 @@ export default function Inquiries() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent data-testid="dialog-link-advertiser">
+          <DialogHeader>
+            <DialogTitle>광고주 연결</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">광고주 선택</label>
+              <Select value={selectedAdvertiserId} onValueChange={setSelectedAdvertiserId}>
+                <SelectTrigger data-testid="select-advertiser">
+                  <SelectValue placeholder="광고주를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {advertisers.filter(a => a.status === 'Active').map((advertiser) => (
+                    <SelectItem key={advertiser.id} value={advertiser.id} data-testid={`select-item-${advertiser.id}`}>
+                      {advertiser.companyName} ({advertiser.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedInquiry && (
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <p className="font-medium mb-1">선택된 문의</p>
+                {selectedInquiry.type === 'gmail' ? (
+                  <p className="text-muted-foreground">
+                    이메일: {selectedInquiry.data.subject || "(제목 없음)"}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">
+                    설문 응답: {selectedInquiry.data.companyName}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setLinkDialogOpen(false)}
+              data-testid="button-cancel-link"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleLinkAdvertiser}
+              disabled={!selectedAdvertiserId || linkMutation.isPending}
+              data-testid="button-confirm-link"
+            >
+              {linkMutation.isPending ? "연결 중..." : "연결"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
