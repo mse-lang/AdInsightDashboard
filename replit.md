@@ -45,6 +45,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**2025-11-16**: **Stibee API v2 Integration Complete** ✅ - Newsletter Analytics
+- ✅ **Backend Stibee API v2 Integration**:
+  - GET /api/analytics/stibee/summary - Overall newsletter statistics with trends
+  - GET /api/analytics/stibee/emails - Email list with pagination support
+  - GET /api/analytics/stibee/emails/:id - Individual email detail with logs
+  - Production-ready error handling with graceful degradation
+  - Demo data fallback when STIBEE_API_KEY not available
+- ✅ **Frontend Analytics Dashboard**:
+  - Summary statistics cards with trend indicators (up/down/neutral)
+  - Email list table with sent/opened/clicked metrics
+  - Email detail modal with comprehensive statistics
+  - CSV export functionality (proper numeric formatting for spreadsheets)
+  - Responsive design with pagination controls
+- ✅ **Data Quality**:
+  - Real Stibee API data confirmed (1 email with 0% open/click rates)
+  - CSV exports numbers as raw values for spreadsheet compatibility
+  - Trend handling: up (green), down (red), neutral (muted)
+
 **2025-11-16**: **Phase 2 Complete** ✅ - Solapi Integration & Dashboard Calendar
 - ✅ **Solapi Multi-Channel Messaging**:
   - Lazy initialization service layer (no crash when credentials missing)
