@@ -23,6 +23,8 @@ export interface AgencyFields extends FieldSet {
   'Contact Person': string;
   'Email': string;
   'Phone': string;
+  'Bank Name'?: string;
+  'Bank Account Number'?: string;
   'Status': 'Active' | 'Inactive';
   'Notes'?: string;
   'Advertisers'?: string[]; // Array of advertiser record IDs

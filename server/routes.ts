@@ -73,6 +73,8 @@ function transformAgencyForAPI(record: AgencyRecord) {
     contactPerson: record.fields['Contact Person'],
     email: record.fields['Email'],
     phone: record.fields['Phone'],
+    bankName: record.fields['Bank Name'] || '',
+    bankAccountNumber: record.fields['Bank Account Number'] || '',
     status: record.fields['Status'],
     notes: record.fields['Notes'] || '',
   };
