@@ -1,5 +1,5 @@
 import type { FieldSet, Record as AirtableRecord } from 'airtable';
-import type { PipelineStatus as SharedPipelineStatus } from '../shared/schema';
+import type { PipelineStatus as SharedPipelineStatus } from '../../shared/schema';
 
 // Generic Airtable record type
 export type AirtableRecordType<T extends FieldSet> = AirtableRecord<T>;

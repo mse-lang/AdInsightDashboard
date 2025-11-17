@@ -49,16 +49,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Briefcase, Search, Filter, Plus, Edit, Trash2, Target, TrendingUp, CheckCircle2, Eye, Calendar as CalendarIcon, ExternalLink } from "lucide-react";
+import { Briefcase, Search, Filter, Plus, Edit, Trash2, Target, TrendingUp, CheckCircle2, Eye, Calendar as CalendarIcon, ExternalLink, Check, ChevronsUpDown, List } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AdCalendar from "./calendar";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const statusColors = {
   Planning: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
@@ -296,14 +312,28 @@ export default function Campaigns() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">캠페인 관리</h1>
           <p className="text-muted-foreground mt-2">
-            광고 캠페인을 생성하고 관리합니다
+            광고 캠페인을 목록과 캘린더로 확인하고 관리합니다
           </p>
         </div>
         <Briefcase className="h-8 w-8 text-muted-foreground" />
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            캠페인 목록
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            캘린더 뷰
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="space-y-6 mt-6">
+
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">총 캠페인</CardTitle>
@@ -358,10 +388,10 @@ export default function Campaigns() {
             </p>
           </CardContent>
         </Card>
-      </div>
+          </div>
 
-      {/* Search, Filter, and Actions */}
-      <Card>
+          {/* Search, Filter, and Actions */}
+          <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <CardTitle>캠페인 목록</CardTitle>
@@ -498,7 +528,13 @@ export default function Campaigns() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="mt-6">
+          <AdCalendar />
+        </TabsContent>
+      </Tabs>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -532,22 +568,59 @@ export default function Campaigns() {
                 control={form.control}
                 name="advertiserId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>광고주 *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-advertiser">
-                          <SelectValue placeholder="광고주를 선택하세요" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {advertisers.map((advertiser) => (
-                          <SelectItem key={advertiser.id} value={advertiser.id}>
-                            {advertiser.companyName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            data-testid="select-advertiser"
+                          >
+                            {field.value
+                              ? advertisers.find(
+                                  (advertiser) => advertiser.id === field.value
+                                )?.companyName
+                              : "광고주를 선택하세요"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="광고주 검색..." />
+                          <CommandList>
+                            <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>
+                            <CommandGroup>
+                              {advertisers.map((advertiser) => (
+                                <CommandItem
+                                  key={advertiser.id}
+                                  value={advertiser.companyName}
+                                  onSelect={() => {
+                                    form.setValue("advertiserId", advertiser.id);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      advertiser.id === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  {advertiser.companyName}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}

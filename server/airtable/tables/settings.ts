@@ -2,7 +2,7 @@ import { base } from '../client';
 import type { SystemSettingsFields } from '../types';
 import type { Records } from 'airtable';
 
-const TABLE_NAME = 'System Settings';
+const TABLE_NAME = 'System_Settings';
 
 export interface GeneralSettings {
   companyName: string;
@@ -142,9 +142,10 @@ const NOTIFICATION_SETTINGS_KEYS = {
 
 export async function getNotificationSettings(): Promise<NotificationSettings> {
   try {
+    // Using 'General' category until 'Notifications' is added to Airtable
     const records = await base<SystemSettingsFields>(TABLE_NAME)
       .select({
-        filterByFormula: "{Category} = 'Notifications'",
+        filterByFormula: "{Category} = 'General'",
       })
       .all();
 
@@ -174,9 +175,10 @@ export async function updateNotificationSettings(
   settings: Partial<NotificationSettings>
 ): Promise<NotificationSettings> {
   try {
+    // Using 'General' category until 'Notifications' is added to Airtable
     const existingRecords = await base<SystemSettingsFields>(TABLE_NAME)
       .select({
-        filterByFormula: "{Category} = 'Notifications'",
+        filterByFormula: "{Category} = 'General'",
       })
       .all();
 
@@ -199,8 +201,9 @@ export async function updateNotificationSettings(
             'Value': stringValue,
           } as SystemSettingsFields);
         } else {
+          // Using 'General' category until 'Notifications' is added to Airtable
           return base<SystemSettingsFields>(TABLE_NAME).create({
-            'Category': 'Notifications',
+            'Category': 'General',
             'Key': airtableKey,
             'Value': stringValue,
           } as SystemSettingsFields);

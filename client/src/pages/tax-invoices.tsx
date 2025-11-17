@@ -30,8 +30,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye, Search, Filter, FileText, CheckCircle, Clock, XCircle, Plus, ExternalLink } from "lucide-react";
+import { Eye, Search, Filter, FileText, CheckCircle, Clock, XCircle, Plus, ExternalLink, Check, ChevronsUpDown, Download } from "lucide-react";
 import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 interface TaxInvoice {
   id: string;
@@ -61,6 +64,27 @@ interface Advertiser {
   email: string;
   phone: string;
   status: string;
+  address?: string;
+  businessType?: string;
+  businessClass?: string;
+  ceoName?: string;
+}
+
+interface Quote {
+  id: string;
+  advertiserId: string;
+  totalAmount: number;
+  discountRate: number;
+  status: string;
+  createdAt: string;
+}
+
+interface QuoteItem {
+  id: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
 }
 
 interface GeneralSettings {
@@ -86,6 +110,11 @@ export default function TaxInvoices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [advertiserSearchOpen, setAdvertiserSearchOpen] = useState(false);
+  const [advertiserSearch, setAdvertiserSearch] = useState("");
+  const [recentQuotes, setRecentQuotes] = useState<Quote[]>([]);
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [formData, setFormData] = useState({
     advertiserId: "",
     invoiceType: "세금계산서",
@@ -129,6 +158,11 @@ export default function TaxInvoices() {
 
   const { data: advertisers = [] } = useQuery<Advertiser[]>({
     queryKey: ["/api/advertisers"],
+  });
+
+  const { data: allQuotes = [] } = useQuery<Quote[]>({
+    queryKey: ["/api/quotes"],
+    enabled: formDialogOpen,
   });
 
   const { data: generalSettings, isLoading: settingsLoading } = useQuery<GeneralSettings>({
@@ -229,7 +263,96 @@ export default function TaxInvoices() {
       recipientEmail: "",
       remark: "",
     });
+    setAdvertiserSearch("");
+    setSelectedQuote(null);
+    setRecentQuotes([]);
   };
+
+  // Handle advertiser selection
+  const handleAdvertiserSelect = async (advertiserId: string) => {
+    const advertiser = advertisers.find(a => a.id === advertiserId);
+    if (!advertiser) return;
+
+    // Auto-fill recipient info from advertiser
+    setFormData(prev => ({
+      ...prev,
+      advertiserId,
+      recipientCorpNum: advertiser.businessRegistrationNumber || "",
+      recipientCorpName: advertiser.companyName,
+      recipientCEOName: advertiser.ceoName || "",
+      recipientAddr: advertiser.address || "",
+      recipientBizType: advertiser.businessType || "",
+      recipientBizClass: advertiser.businessClass || "",
+      recipientContactName: advertiser.contactPerson,
+      recipientTelNum: advertiser.phone,
+      recipientEmail: advertiser.email,
+    }));
+
+    // Load recent quotes for this advertiser
+    setLoadingQuotes(true);
+    try {
+      const quotes = allQuotes
+        .filter(q => q.advertiserId === advertiserId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      setRecentQuotes(quotes);
+    } catch (error) {
+      console.error('Failed to load quotes:', error);
+    } finally {
+      setLoadingQuotes(false);
+    }
+  };
+
+  // Load quote items when quote selected
+  const handleQuoteSelect = async (quote: Quote) => {
+    setSelectedQuote(quote);
+    
+    try {
+      const response = await fetch(`/api/quote-items?quoteId=${quote.id}`);
+      if (!response.ok) throw new Error('Failed to load quote items');
+      
+      const quoteItems: QuoteItem[] = await response.json();
+      
+      // Map quote items to tax invoice items
+      const newItems = quoteItems.map(item => ({
+        purchaseDate: format(new Date(), "yyyy-MM-dd"),
+        itemName: item.productName,
+        spec: "",
+        qty: item.quantity,
+        unitPrice: item.unitPrice,
+        supplyPrice: item.subtotal,
+        tax: Math.round(item.subtotal * 0.1),
+        remark: "",
+      }));
+
+      setFormData(prev => ({
+        ...prev,
+        items: newItems.length > 0 ? newItems : prev.items,
+      }));
+
+      toast({
+        title: "견적서 로드 완료",
+        description: `${quoteItems.length}개 품목이 자동 입력되었습니다.`,
+      });
+    } catch (error) {
+      toast({
+        title: "견적서 로드 실패",
+        description: "견적서 품목을 불러올 수 없습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getSelectedAdvertiser = () => {
+    return advertisers.find(a => a.id === formData.advertiserId);
+  };
+
+  const filteredAdvertisers = advertisers
+    .filter(a => a.status === "Active")
+    .filter(a => 
+      advertiserSearch === "" || 
+      a.companyName.toLowerCase().includes(advertiserSearch.toLowerCase())
+    );
 
   const handleCreateInvoice = () => {
     resetForm();
@@ -553,28 +676,57 @@ export default function TaxInvoices() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="advertiser">광고주</Label>
-                <Select
-                  value={formData.advertiserId}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, advertiserId: value })
-                  }
-                >
-                  <SelectTrigger id="advertiser" data-testid="select-advertiser">
-                    <SelectValue placeholder="광고주를 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {advertisers.filter(a => a.status === "Active").map((advertiser) => (
-                      <SelectItem
-                        key={advertiser.id}
-                        value={advertiser.id}
-                        data-testid={`select-item-advertiser-${advertiser.id}`}
-                      >
-                        {advertiser.companyName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="advertiser">광고주 *</Label>
+                <Popover open={advertiserSearchOpen} onOpenChange={setAdvertiserSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="advertiser"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={advertiserSearchOpen}
+                      className="w-full justify-between"
+                      data-testid="select-advertiser"
+                    >
+                      {formData.advertiserId
+                        ? getSelectedAdvertiser()?.companyName
+                        : "광고주를 검색하거나 선택하세요"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="광고주 검색..." 
+                        value={advertiserSearch}
+                        onValueChange={setAdvertiserSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredAdvertisers.map((advertiser) => (
+                            <CommandItem
+                              key={advertiser.id}
+                              value={advertiser.companyName}
+                              onSelect={() => {
+                                handleAdvertiserSelect(advertiser.id);
+                                setAdvertiserSearchOpen(false);
+                              }}
+                              data-testid={`select-item-advertiser-${advertiser.id}`}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.advertiserId === advertiser.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {advertiser.companyName}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label htmlFor="writeDate">작성일</Label>
@@ -587,6 +739,55 @@ export default function TaxInvoices() {
                 />
               </div>
             </div>
+
+            {/* Recent Quotes Section */}
+            {formData.advertiserId && recentQuotes.length > 0 && (
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  최근 견적서 ({recentQuotes.length}개)
+                </h3>
+                <div className="space-y-2">
+                  {recentQuotes.map((quote) => (
+                    <div
+                      key={quote.id}
+                      className={cn(
+                        "p-3 border rounded-md cursor-pointer hover:bg-accent transition-colors",
+                        selectedQuote?.id === quote.id && "bg-accent border-primary"
+                      )}
+                      onClick={() => handleQuoteSelect(quote)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">
+                              {formatCurrency(quote.totalAmount * (1 - quote.discountRate / 100))}
+                            </span>
+                            {quote.discountRate > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {quote.discountRate}% 할인
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(quote.createdAt), "yyyy-MM-dd")}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{quote.status}</Badge>
+                          {selectedQuote?.id === quote.id && (
+                            <Download className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  💡 견적서를 클릭하면 품목이 자동으로 입력됩니다
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
