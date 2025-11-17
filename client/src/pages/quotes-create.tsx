@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { AirtableAdvertiser, AirtableAdProduct } from "@/types/airtable";
+import type { AirtableAdvertiser } from "@/types/airtable";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -9,7 +9,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Trash2, ShoppingCart, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Pricing from settings page
+interface Pricing {
+  id: string;
+  productName: string;
+  productKey: string;
+  price: string;
+  specs: string;
+  description: string;
+}
 
 interface QuoteFormDialogProps {
   open: boolean;
@@ -18,7 +31,7 @@ interface QuoteFormDialogProps {
 }
 
 interface QuoteItemForm {
-  adProductId: string;
+  pricingId: string;
   productName: string;
   quantity: number;
   unitPrice: number;
@@ -28,6 +41,8 @@ interface QuoteItemForm {
 export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDialogProps) {
   const { toast } = useToast();
   const [advertiserId, setAdvertiserId] = useState("");
+  const [advertiserSearchOpen, setAdvertiserSearchOpen] = useState(false);
+  const [advertiserSearch, setAdvertiserSearch] = useState("");
   const [items, setItems] = useState<QuoteItemForm[]>([]);
   const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -38,8 +53,9 @@ export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDial
     queryKey: ["/api/advertisers"],
   });
 
-  const { data: adProducts = [] } = useQuery<AirtableAdProduct[]>({
-    queryKey: ["/api/ad-products"],
+  // Use pricings from settings instead of ad-products
+  const { data: pricings = [] } = useQuery<Pricing[]>({
+    queryKey: ["/api/pricings"],
   });
 
   const createMutation = useMutation({
@@ -75,7 +91,7 @@ export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDial
             body: JSON.stringify({
               quoteId: quote.id,
               items: data.items.map(item => ({
-                adProductId: item.adProductId,
+                pricingId: item.pricingId,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 subtotal: item.subtotal,
@@ -140,15 +156,17 @@ export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDial
       return;
     }
 
-    const product = adProducts.find(p => p.id === selectedProductId);
-    if (!product) return;
+    const pricing = pricings.find(p => p.id === selectedProductId);
+    if (!pricing) return;
+
+    const unitPrice = parseInt(pricing.price.replace(/[^0-9]/g, '')) || 0;
 
     const newItem: QuoteItemForm = {
-      adProductId: product.id,
-      productName: product.productName,
+      pricingId: pricing.id,
+      productName: pricing.productName,
       quantity,
-      unitPrice: product.unitPrice,
-      subtotal: quantity * product.unitPrice,
+      unitPrice,
+      subtotal: quantity * unitPrice,
     };
 
     setItems([...items, newItem]);
@@ -199,12 +217,24 @@ export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDial
 
   const handleReset = () => {
     setAdvertiserId("");
+    setAdvertiserSearch("");
     setItems([]);
     setSelectedProductId("");
     setQuantity(1);
     setDiscountRate(0);
     setStatus("Draft");
   };
+
+  const getSelectedAdvertiser = () => {
+    return advertisers.find(a => a.id === advertiserId);
+  };
+
+  const filteredAdvertisers = advertisers
+    .filter(a => a.status === "Active")
+    .filter(a => 
+      advertiserSearch === "" || 
+      a.companyName.toLowerCase().includes(advertiserSearch.toLowerCase())
+    );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("ko-KR", {
@@ -220,21 +250,59 @@ export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDial
           <DialogTitle>견적서 생성</DialogTitle>
         </DialogHeader>
         <div className="space-y-6">
-          {/* 광고주 선택 */}
+          {/* 광고주 선택 with Search */}
           <div>
             <Label htmlFor="advertiser">광고주 *</Label>
-            <Select value={advertiserId} onValueChange={setAdvertiserId}>
-              <SelectTrigger id="advertiser" data-testid="select-advertiser">
-                <SelectValue placeholder="광고주를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {advertisers.filter(a => a.status === "Active").map((advertiser) => (
-                  <SelectItem key={advertiser.id} value={advertiser.id} data-testid={`select-item-advertiser-${advertiser.id}`}>
-                    {advertiser.companyName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={advertiserSearchOpen} onOpenChange={setAdvertiserSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="advertiser"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={advertiserSearchOpen}
+                  className="w-full justify-between"
+                  data-testid="select-advertiser"
+                >
+                  {advertiserId
+                    ? getSelectedAdvertiser()?.companyName
+                    : "광고주를 검색하거나 선택하세요"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder="광고주 검색..." 
+                    value={advertiserSearch}
+                    onValueChange={setAdvertiserSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredAdvertisers.map((advertiser) => (
+                        <CommandItem
+                          key={advertiser.id}
+                          value={advertiser.companyName}
+                          onSelect={() => {
+                            setAdvertiserId(advertiser.id);
+                            setAdvertiserSearchOpen(false);
+                          }}
+                          data-testid={`select-item-advertiser-${advertiser.id}`}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              advertiserId === advertiser.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {advertiser.companyName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* 품목 추가 섹션 */}
@@ -245,17 +313,28 @@ export function QuoteFormDialog({ open, onOpenChange, onSuccess }: QuoteFormDial
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
-                <Label htmlFor="product">광고 상품</Label>
+                <Label htmlFor="product">광고 상품 (설정의 단가표)</Label>
                 <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                   <SelectTrigger id="product" data-testid="select-product">
                     <SelectValue placeholder="상품을 선택하세요" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {adProducts.map((product) => (
-                      <SelectItem key={product.id} value={product.id} data-testid={`select-item-product-${product.id}`}>
-                        {product.productName} - {formatCurrency(product.unitPrice)} ({product.format})
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-[300px]">
+                    {pricings.map((pricing) => {
+                      const price = parseInt(pricing.price.replace(/[^0-9]/g, '')) || 0;
+                      return (
+                        <SelectItem key={pricing.id} value={pricing.id} data-testid={`select-item-product-${pricing.id}`}>
+                          <div className="flex flex-col gap-1">
+                            <div className="font-medium">{pricing.productName} - {formatCurrency(price)}</div>
+                            {pricing.specs && (
+                              <div className="text-xs text-muted-foreground">{pricing.specs}</div>
+                            )}
+                            {pricing.description && (
+                              <div className="text-xs text-muted-foreground">{pricing.description}</div>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

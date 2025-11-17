@@ -5,6 +5,8 @@ export interface AirtableAgency {
   contactPerson: string;
   email: string;
   phone: string;
+  bankName?: string;
+  bankAccountNumber?: string;
   status: 'Active' | 'Inactive';
   notes?: string;
 }

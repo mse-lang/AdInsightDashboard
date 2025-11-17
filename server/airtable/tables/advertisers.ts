@@ -143,19 +143,19 @@ export async function updateAdvertiser(
   try {
     const fields: Partial<AdvertiserFields> = {};
 
-    if (data.companyName) fields['Company Name'] = data.companyName;
-    if (data.contactPerson) fields['Contact Person'] = data.contactPerson;
-    if (data.contactPersonType) fields['Contact Person Type'] = data.contactPersonType;
-    if (data.email) fields['Email'] = data.email;
-    if (data.phone) fields['Phone'] = data.phone;
-    if (data.businessNumber) fields['Business Number'] = data.businessNumber;
-    if (data.businessRegistrationNumber) fields['Business Registration Number'] = data.businessRegistrationNumber;
-    if (data.bankAccountNumber) fields['Bank Account Number'] = data.bankAccountNumber;
+    if (data.companyName !== undefined) fields['Company Name'] = data.companyName;
+    if (data.contactPerson !== undefined) fields['Contact Person'] = data.contactPerson;
+    if (data.contactPersonType !== undefined) fields['Contact Person Type'] = data.contactPersonType;
+    if (data.email !== undefined) fields['Email'] = data.email;
+    if (data.phone !== undefined) fields['Phone'] = data.phone;
+    if (data.businessNumber !== undefined) fields['Business Number'] = data.businessNumber;
+    if (data.businessRegistrationNumber !== undefined) fields['Business Registration Number'] = data.businessRegistrationNumber;
+    if (data.bankAccountNumber !== undefined) fields['Bank Account Number'] = data.bankAccountNumber;
     if (data.adMaterials !== undefined) fields['Ad Materials'] = data.adMaterials;
-    if (data.agencyId) fields['Agency'] = [data.agencyId];
-    if (data.industry) fields['Industry'] = data.industry;
-    if (data.accountManagerId) fields['Account Manager'] = [data.accountManagerId];
-    if (data.status) fields['Status'] = data.status;
+    if (data.agencyId !== undefined) fields['Agency'] = data.agencyId ? [data.agencyId] : [];
+    if (data.industry !== undefined) fields['Industry'] = data.industry;
+    if (data.accountManagerId !== undefined) fields['Account Manager'] = data.accountManagerId ? [data.accountManagerId] : [];
+    if (data.status !== undefined) fields['Status'] = data.status;
 
     if (Object.keys(fields).length === 0) {
       throw new Error('No fields to update');

@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+// Legacy PostgreSQL storage - kept for backwards compatibility with non-migrated features
+// TODO: Migrate remaining features (Memos, Contacts, Ad Slots) to Airtable
 import { storage } from "./storage";
 import { insertAdvertiserSchema, insertContactSchema, insertMemoSchema, insertQuoteSchema, insertPricingSchema, insertAdSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdminEmail, createAuthToken, verifyAuthToken, sendMagicLink } from "./auth";
@@ -71,6 +73,8 @@ function transformAgencyForAPI(record: AgencyRecord) {
     contactPerson: record.fields['Contact Person'],
     email: record.fields['Email'],
     phone: record.fields['Phone'],
+    bankName: record.fields['Bank Name'] || '',
+    bankAccountNumber: record.fields['Bank Account Number'] || '',
     status: record.fields['Status'],
     notes: record.fields['Notes'] || '',
   };
@@ -875,6 +879,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const data = schema.parse(req.body);
       const campaign = await campaignsTable.createCampaign(data);
+      
+      // Auto-sync to Google Calendar
+      try {
+        // Get advertiser info
+        let advertiser: AdvertiserRecord | null = null;
+        if (campaign.fields['Advertiser']?.length > 0) {
+          advertiser = await advertisersTable.getAdvertiserById(campaign.fields['Advertiser'][0]);
+        }
+
+        // Get ad products info
+        const adProducts: AdProductRecord[] = [];
+        if (campaign.fields['Ad Products']?.length > 0) {
+          for (const productId of campaign.fields['Ad Products']) {
+            const product = await adProductsTable.getAdProductById(productId);
+            if (product) {
+              adProducts.push(product);
+            }
+          }
+        }
+
+        // Create calendar event
+        const calendarEvent = await googleCalendarService.createCampaignEvent(
+          campaign,
+          advertiser,
+          adProducts
+        );
+
+        // Update campaign with calendar ID
+        await campaignsTable.updateCampaign(campaign.id, {
+          googleCalendarId: calendarEvent.id,
+        });
+        
+        console.log(`✅ Campaign ${campaign.id} synced to Google Calendar: ${calendarEvent.id}`);
+      } catch (calendarError) {
+        console.warn('⚠️ Failed to sync campaign to Google Calendar:', calendarError);
+        // Don't fail the campaign creation if calendar sync fails
+      }
+      
       res.json(transformCampaignForAPI(campaign));
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -910,6 +952,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const data = schema.parse(req.body);
       const campaign = await campaignsTable.updateCampaign(req.params.id, data);
+      
+      // Auto-sync to Google Calendar if already synced
+      if (campaign.fields['Google Calendar ID']) {
+        try {
+          // Get advertiser info
+          let advertiser: AdvertiserRecord | null = null;
+          if (campaign.fields['Advertiser']?.length > 0) {
+            advertiser = await advertisersTable.getAdvertiserById(campaign.fields['Advertiser'][0]);
+          }
+
+          // Get ad products info
+          const adProducts: AdProductRecord[] = [];
+          if (campaign.fields['Ad Products']?.length > 0) {
+            for (const productId of campaign.fields['Ad Products']) {
+              const product = await adProductsTable.getAdProductById(productId);
+              if (product) {
+                adProducts.push(product);
+              }
+            }
+          }
+
+          // Update calendar event
+          await googleCalendarService.updateCampaignEvent(
+            campaign.fields['Google Calendar ID'],
+            campaign,
+            advertiser,
+            adProducts
+          );
+          
+          console.log(`✅ Campaign ${campaign.id} updated in Google Calendar`);
+        } catch (calendarError) {
+          console.warn('⚠️ Failed to update campaign in Google Calendar:', calendarError);
+          // Don't fail the campaign update if calendar sync fails
+        }
+      }
+      
       res.json(transformCampaignForAPI(campaign));
     } catch (error) {
       console.error('Error updating campaign:', error);
@@ -935,9 +1013,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(503).json({ error: 'Airtable not configured' });
       }
 
+      // Get campaign first to check for Google Calendar ID
+      const campaign = await campaignsTable.getCampaignById(req.params.id);
+      
       const success = await campaignsTable.deleteCampaign(req.params.id);
       if (!success) {
         return res.status(404).json({ error: 'Campaign not found or deletion failed' });
+      }
+
+      // Auto-delete from Google Calendar if it was synced
+      if (campaign?.fields['Google Calendar ID']) {
+        try {
+          await googleCalendarService.deleteCampaignEvent(
+            campaign.fields['Google Calendar ID']
+          );
+          console.log(`✅ Campaign ${campaign.id} deleted from Google Calendar`);
+        } catch (calendarError) {
+          console.warn('⚠️ Failed to delete campaign from Google Calendar:', calendarError);
+          // Don't fail the campaign deletion if calendar deletion fails
+        }
       }
 
       res.json({ success: true });
@@ -1658,6 +1752,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get quote items by quote ID (query parameter)
+  app.get("/api/quote-items", async (req, res) => {
+    try {
+      if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+        return res.status(503).json({ error: 'Airtable not configured' });
+      }
+      
+      const quoteId = req.query.quoteId as string;
+      
+      if (!quoteId) {
+        return res.status(400).json({ error: 'quoteId query parameter is required' });
+      }
+      
+      const records = await quoteItemsTable.getQuoteItemsByQuote(quoteId);
+      const items = records.map(transformQuoteItemForAPI);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching quote items by quote:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: 'Failed to fetch quote items', details: errorMessage });
+    }
+  });
+
+  // Get single quote item by ID
   app.get("/api/quote-items/:id", async (req, res) => {
     try {
       if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
@@ -1729,19 +1847,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({
         quoteId: z.string().trim().min(1, "Quote ID is required"),
         items: z.array(z.object({
-          adProductId: z.string().trim().min(1),
+          // Accept both pricingId (from new UI) and adProductId (for backward compatibility)
+          pricingId: z.string().trim().min(1).optional(),
+          adProductId: z.string().trim().min(1).optional(),
           quantity: z.number().int().positive(),
           unitPrice: z.number().min(0),
           subtotal: z.number().min(0).optional(),
           duration: z.number().int().positive().optional(),
+        }).refine(data => data.pricingId || data.adProductId, {
+          message: "Either pricingId or adProductId is required"
         })).min(1, "At least one item is required"),
       });
       
       const data = schema.parse(req.body);
       
+      // Map pricingId to adProductId for Airtable compatibility
       const itemsWithQuoteId = data.items.map(item => ({
-        ...item,
         quoteId: data.quoteId,
+        adProductId: item.pricingId || item.adProductId!,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+        duration: item.duration,
       }));
       
       const records = await quoteItemsTable.bulkCreateQuoteItems(itemsWithQuoteId);
@@ -2406,6 +2533,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const advertiserId = parseInt(req.params.id);
     const materials = await storage.getAdMaterialsByAdvertiserId(advertiserId);
     res.json(materials);
+  });
+
+  app.get("/api/calendar/events", requireAuth, async (req, res) => {
+    try {
+      const querySchema = z.object({
+        timeMin: z.string().optional(),
+        timeMax: z.string().optional(),
+        maxResults: z.coerce.number().int().min(1).max(2500).optional(),
+        singleEvents: z.coerce.boolean().optional(),
+        orderBy: z.enum(['startTime', 'updated']).optional(),
+        q: z.string().trim().max(256).optional(),
+        showDeleted: z.coerce.boolean().optional(),
+      });
+
+      const query = querySchema.parse(req.query);
+
+      const now = new Date();
+      const defaultTimeMin = new Date(now);
+      defaultTimeMin.setMonth(defaultTimeMin.getMonth() - 1);
+      const defaultTimeMax = new Date(now);
+      defaultTimeMax.setMonth(defaultTimeMax.getMonth() + 2);
+
+      const parseDate = (value: string | undefined, fallback: Date, field: 'timeMin' | 'timeMax'): Date | null => {
+        if (!value) {
+          return fallback;
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ error: `Invalid ${field} parameter` });
+          return null;
+        }
+        return parsed;
+      };
+
+      const parsedTimeMin = parseDate(query.timeMin, defaultTimeMin, 'timeMin');
+      if (!parsedTimeMin) {
+        return;
+      }
+      const parsedTimeMax = parseDate(query.timeMax, defaultTimeMax, 'timeMax');
+      if (!parsedTimeMax) {
+        return;
+      }
+
+      if (parsedTimeMax.getTime() <= parsedTimeMin.getTime()) {
+        return res.status(400).json({ error: 'timeMax must be greater than timeMin' });
+      }
+
+      const isoTimeMin = parsedTimeMin.toISOString();
+      const isoTimeMax = parsedTimeMax.toISOString();
+
+      const events = await googleCalendarService.listCalendarEvents({
+        timeMin: isoTimeMin,
+        timeMax: isoTimeMax,
+        maxResults: query.maxResults,
+        singleEvents: query.singleEvents,
+        orderBy: query.orderBy,
+        q: query.q,
+        showDeleted: query.showDeleted,
+      });
+
+      res.json({
+        events,
+        meta: {
+          timeMin: isoTimeMin,
+          timeMax: isoTimeMax,
+          count: events.length,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching calendar events:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const status = typeof (error as any)?.status === 'number' ? (error as any).status : undefined;
+      const details = (error as any)?.details ?? message;
+
+      if (message.includes('not configured') || message.includes('not connected')) {
+        return res.status(503).json({ error: 'Google Calendar not configured', details: message });
+      }
+
+      if (status === 401 || status === 403) {
+        return res.status(503).json({
+          error: message || 'Google Calendar 접근 권한이 없습니다. 캘린더 공유 설정을 확인해주세요.',
+          details,
+          code: status,
+        });
+      }
+
+      if (typeof status === 'number' && status >= 400 && status < 600) {
+        return res.status(status).json({ error: message, details });
+      }
+
+      res.status(500).json({ error: 'Failed to fetch calendar events', details: message });
+    }
   });
 
   app.get("/api/calendar/ad-materials", async (req, res) => {

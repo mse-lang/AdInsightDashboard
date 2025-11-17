@@ -1,6 +1,4 @@
-import Airtable from 'airtable';
-
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID!);
+import { base } from '../client';
 
 export interface TaxInvoiceFields {
   mgtKey: string; // 관리번호
@@ -31,6 +29,11 @@ export interface TaxInvoice {
  * Get all tax invoices
  */
 export async function getAllTaxInvoices(): Promise<TaxInvoice[]> {
+  if (!base) {
+    console.warn('[Airtable] getAllTaxInvoices called but Airtable not configured');
+    return [];
+  }
+
   try {
     const records = await base('TaxInvoices')
       .select({
@@ -52,6 +55,11 @@ export async function getAllTaxInvoices(): Promise<TaxInvoice[]> {
  * Get tax invoice by ID
  */
 export async function getTaxInvoiceById(id: string): Promise<TaxInvoice | null> {
+  if (!base) {
+    console.warn('[Airtable] getTaxInvoiceById called but Airtable not configured');
+    return null;
+  }
+
   try {
     const record = await base('TaxInvoices').find(id);
     return {
@@ -68,6 +76,11 @@ export async function getTaxInvoiceById(id: string): Promise<TaxInvoice | null> 
  * Get tax invoices by advertiser ID
  */
 export async function getTaxInvoicesByAdvertiserId(advertiserId: string): Promise<TaxInvoice[]> {
+  if (!base) {
+    console.warn('[Airtable] getTaxInvoicesByAdvertiserId called but Airtable not configured');
+    return [];
+  }
+
   try {
     const records = await base('TaxInvoices')
       .select({
@@ -90,6 +103,10 @@ export async function getTaxInvoicesByAdvertiserId(advertiserId: string): Promis
  * Create tax invoice
  */
 export async function createTaxInvoice(fields: Omit<TaxInvoiceFields, 'createdAt'>): Promise<TaxInvoice> {
+  if (!base) {
+    throw new Error('Cannot create tax invoice: Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID.');
+  }
+
   try {
     const record = await base('TaxInvoices').create({
       ...fields,
@@ -113,6 +130,10 @@ export async function updateTaxInvoice(
   id: string,
   fields: Partial<Omit<TaxInvoiceFields, 'createdAt'>>
 ): Promise<TaxInvoice> {
+  if (!base) {
+    throw new Error('Cannot update tax invoice: Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID.');
+  }
+
   try {
     const record = await base('TaxInvoices').update(id, fields);
 
@@ -130,6 +151,10 @@ export async function updateTaxInvoice(
  * Delete tax invoice
  */
 export async function deleteTaxInvoice(id: string): Promise<void> {
+  if (!base) {
+    throw new Error('Cannot delete tax invoice: Airtable not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID.');
+  }
+
   try {
     await base('TaxInvoices').destroy(id);
   } catch (error) {

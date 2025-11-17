@@ -1,10 +1,164 @@
-import { google } from 'googleapis';
+import fs from 'fs';
+import path from 'path';
+import { JWT } from 'google-auth-library';
+import { google, calendar_v3 } from 'googleapis';
 import type { CampaignRecord } from '../airtable/tables/campaigns';
 import type { AdvertiserRecord } from '../airtable/tables/advertisers';
 
+const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
+
+interface ServiceAccountCredentials {
+  client_email: string;
+  private_key: string;
+}
+
+interface GoogleCalendarAccessError extends Error {
+  status?: number;
+  details?: unknown;
+}
+
+let cachedServiceAccountCredentials: ServiceAccountCredentials | null | undefined;
+let serviceAccountAuthClient: JWT | null = null;
+let serviceAccountCalendarClient: calendar_v3.Calendar | null = null;
 let connectionSettings: any;
 
-async function getAccessToken() {
+function normalizePrivateKey(privateKey: string): string {
+  return privateKey.replace(/\\n/g, '\n');
+}
+
+function parseCredentials(jsonString: string | undefined | null): ServiceAccountCredentials | null {
+  if (!jsonString) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (parsed?.client_email && parsed?.private_key) {
+      return {
+        client_email: parsed.client_email,
+        private_key: normalizePrivateKey(parsed.private_key),
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to parse Google Calendar credentials JSON from environment:', error);
+  }
+  return null;
+}
+
+function resolveServiceAccountCredentials(): ServiceAccountCredentials | null {
+  if (cachedServiceAccountCredentials !== undefined) {
+    return cachedServiceAccountCredentials;
+  }
+
+  const envClientEmail =
+    process.env.GOOGLE_CALENDAR_CLIENT_EMAIL ||
+    process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const envPrivateKey =
+    process.env.GOOGLE_CALENDAR_PRIVATE_KEY ||
+    process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+
+  if (envClientEmail && envPrivateKey) {
+    cachedServiceAccountCredentials = {
+      client_email: envClientEmail,
+      private_key: normalizePrivateKey(envPrivateKey),
+    };
+    return cachedServiceAccountCredentials;
+  }
+
+  const credentialsFromEnvJson =
+    process.env.GOOGLE_CALENDAR_CREDENTIALS ||
+    process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_CREDENTIALS ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
+
+  const parsedFromEnv = parseCredentials(credentialsFromEnvJson ?? null);
+  if (parsedFromEnv) {
+    cachedServiceAccountCredentials = parsedFromEnv;
+    return cachedServiceAccountCredentials;
+  }
+
+  const credentialsPath =
+    process.env.GOOGLE_CALENDAR_CREDENTIALS_PATH ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH ||
+    path.resolve(process.cwd(), 'server/google-credentials.json');
+
+  if (fs.existsSync(credentialsPath)) {
+    try {
+      const raw = fs.readFileSync(credentialsPath, 'utf-8');
+      const parsed = parseCredentials(raw);
+      if (parsed) {
+        cachedServiceAccountCredentials = parsed;
+        return cachedServiceAccountCredentials;
+      }
+    } catch (error) {
+      console.warn('Failed to read Google Calendar credentials file:', error);
+    }
+  }
+
+  cachedServiceAccountCredentials = null;
+  return cachedServiceAccountCredentials;
+}
+
+async function getServiceAccountCalendarClient(): Promise<calendar_v3.Calendar | null> {
+  const credentials = resolveServiceAccountCredentials();
+  if (!credentials) {
+    return null;
+  }
+
+  if (!serviceAccountAuthClient) {
+    serviceAccountAuthClient = new JWT({
+      email: credentials.client_email,
+      key: credentials.private_key,
+      scopes: CALENDAR_SCOPES,
+      subject: process.env.GOOGLE_CALENDAR_IMPERSONATE_EMAIL || undefined,
+    });
+  }
+
+  await serviceAccountAuthClient.authorize();
+
+  if (!serviceAccountCalendarClient) {
+    serviceAccountCalendarClient = google.calendar({
+      version: 'v3',
+      auth: serviceAccountAuthClient,
+    });
+  }
+
+  return serviceAccountCalendarClient;
+}
+
+function isGoogleApiError(error: unknown): error is { response?: { status?: number; data?: any }; message?: string } {
+  return typeof error === 'object' && error !== null && 'response' in error;
+}
+
+function mapGoogleApiError(error: unknown, fallbackMessage: string): GoogleCalendarAccessError {
+  if (isGoogleApiError(error)) {
+    const status = error.response?.status ?? 500;
+    const rawMessage =
+      (error.response?.data?.error?.message as string | undefined) ||
+      (error as { message?: string }).message ||
+      fallbackMessage;
+    const message =
+      status === 401 || status === 403
+        ? 'Google Calendar 접근 권한이 없습니다. 캘린더 공유 설정을 확인해주세요.'
+        : rawMessage;
+    const mapped: GoogleCalendarAccessError = new Error(message);
+    mapped.status = status;
+    mapped.details = error.response?.data ?? rawMessage;
+    return mapped;
+  }
+
+  const fallbackError: GoogleCalendarAccessError =
+    error instanceof Error ? (error as GoogleCalendarAccessError) : new Error(fallbackMessage);
+  if (fallbackError.status === undefined) {
+    fallbackError.status = 500;
+  }
+  if (fallbackError.details === undefined) {
+    fallbackError.details = fallbackError.message || fallbackMessage;
+  }
+  return fallbackError;
+}
+
+async function getConnectorAccessToken() {
   if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
     const cachedToken = connectionSettings.settings.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
     if (cachedToken) {
@@ -42,14 +196,37 @@ async function getAccessToken() {
 }
 
 export async function getUncachableGoogleCalendarClient() {
-  const accessToken = await getAccessToken();
+  const errors: Error[] = [];
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({
-    access_token: accessToken
-  });
+  try {
+    const serviceAccountClient = await getServiceAccountCalendarClient();
+    if (serviceAccountClient) {
+      return serviceAccountClient;
+    }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    errors.push(err);
+  }
 
-  return google.calendar({ version: 'v3', auth: oauth2Client });
+  try {
+    const accessToken = await getConnectorAccessToken();
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+    });
+    return google.calendar({ version: 'v3', auth: oauth2Client });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    errors.push(err);
+  }
+
+  const errorMessage = errors.length
+    ? `Google Calendar not configured: ${errors.map((err) => err.message).join('; ')}`
+    : 'Google Calendar not configured';
+
+  const combinedError: GoogleCalendarAccessError = new Error(errorMessage);
+  combinedError.details = errors;
+  throw combinedError;
 }
 
 /**
@@ -135,7 +312,103 @@ export interface CalendarEvent {
     dateTime?: string;
     timeZone?: string;
   };
-  htmlLink: string;
+  htmlLink?: string;
+  status?: string;
+  location?: string;
+  organizer?: {
+    displayName?: string;
+    email?: string;
+  };
+  attendees?: Array<{
+    displayName?: string;
+    email?: string;
+    responseStatus?: string;
+  }>;
+  hangoutLink?: string;
+  created?: string;
+  updated?: string;
+}
+
+/**
+ * Get the configured calendar ID from environment or use default
+ */
+function getCalendarId(): string {
+  return process.env.GOOGLE_CALENDAR_ID || 'primary';
+}
+
+export interface ListCalendarEventsOptions {
+  timeMin?: string;
+  timeMax?: string;
+  maxResults?: number;
+  singleEvents?: boolean;
+  orderBy?: 'startTime' | 'updated';
+  q?: string;
+  showDeleted?: boolean;
+  timeZone?: string;
+}
+
+export async function listCalendarEvents(
+  options: ListCalendarEventsOptions = {},
+  calendarId?: string
+): Promise<CalendarEvent[]> {
+  const targetCalendarId = calendarId || getCalendarId();
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+
+    const params: calendar_v3.Params$Resource$Events$List = {
+      calendarId: targetCalendarId,
+      singleEvents: options.singleEvents ?? true,
+      orderBy: options.orderBy ?? 'startTime',
+      maxResults: options.maxResults ?? 200,
+      timeMin: options.timeMin,
+      timeMax: options.timeMax,
+      q: options.q,
+      showDeleted: options.showDeleted ?? false,
+      timeZone: options.timeZone ?? 'Asia/Seoul',
+    };
+
+    const response = await calendar.events.list(params);
+
+    const events = response.data.items ?? [];
+
+    return events
+      .filter((event): event is calendar_v3.Schema$Event => Boolean(event && event.id))
+      .map((event) => ({
+        id: event.id!,
+        summary: event.summary ?? '제목 없음',
+        description: event.description ?? undefined,
+        start: {
+          date: event.start?.date ?? undefined,
+          dateTime: event.start?.dateTime ?? undefined,
+          timeZone: event.start?.timeZone ?? undefined,
+        },
+        end: {
+          date: event.end?.date ?? undefined,
+          dateTime: event.end?.dateTime ?? undefined,
+          timeZone: event.end?.timeZone ?? undefined,
+        },
+        htmlLink: event.htmlLink ?? undefined,
+        status: event.status ?? undefined,
+        location: event.location ?? undefined,
+        organizer: event.organizer
+          ? {
+              displayName: event.organizer.displayName ?? undefined,
+              email: event.organizer.email ?? undefined,
+            }
+          : undefined,
+        attendees: event.attendees?.map((attendee) => ({
+          displayName: attendee.displayName ?? undefined,
+          email: attendee.email ?? undefined,
+          responseStatus: attendee.responseStatus ?? undefined,
+        })),
+        hangoutLink: event.hangoutLink ?? undefined,
+        created: event.created ?? undefined,
+        updated: event.updated ?? undefined,
+      }));
+  } catch (error) {
+    console.error('Error listing calendar events:', error);
+    throw mapGoogleApiError(error, 'Google Calendar 이벤트를 불러오는 중 오류가 발생했습니다.');
+  }
 }
 
 /**
@@ -145,8 +418,9 @@ export async function createCampaignEvent(
   campaign: CampaignRecord,
   advertiser: AdvertiserRecord | null,
   adProducts?: any[],
-  calendarId: string = 'primary'
+  calendarId?: string
 ): Promise<CalendarEvent> {
+  const targetCalendarId = calendarId || getCalendarId();
   try {
     const calendar = await getUncachableGoogleCalendarClient();
     
@@ -173,14 +447,14 @@ export async function createCampaignEvent(
     };
     
     const response = await calendar.events.insert({
-      calendarId: calendarId,
+      calendarId: targetCalendarId,
       requestBody: event,
     });
     
     return response.data as CalendarEvent;
   } catch (error) {
     console.error('Error creating calendar event:', error);
-    throw error;
+    throw mapGoogleApiError(error, 'Google Calendar 이벤트를 생성하지 못했습니다.');
   }
 }
 
@@ -192,8 +466,9 @@ export async function updateCampaignEvent(
   campaign: CampaignRecord,
   advertiser: AdvertiserRecord | null,
   adProducts?: any[],
-  calendarId: string = 'primary'
+  calendarId?: string
 ): Promise<CalendarEvent> {
+  const targetCalendarId = calendarId || getCalendarId();
   try {
     const calendar = await getUncachableGoogleCalendarClient();
     
@@ -220,7 +495,7 @@ export async function updateCampaignEvent(
     };
     
     const response = await calendar.events.update({
-      calendarId: calendarId,
+      calendarId: targetCalendarId,
       eventId: eventId,
       requestBody: event,
     });
@@ -228,7 +503,7 @@ export async function updateCampaignEvent(
     return response.data as CalendarEvent;
   } catch (error) {
     console.error('Error updating calendar event:', error);
-    throw error;
+    throw mapGoogleApiError(error, 'Google Calendar 이벤트를 업데이트하지 못했습니다.');
   }
 }
 
@@ -237,18 +512,19 @@ export async function updateCampaignEvent(
  */
 export async function deleteCampaignEvent(
   eventId: string,
-  calendarId: string = 'primary'
+  calendarId?: string
 ): Promise<void> {
+  const targetCalendarId = calendarId || getCalendarId();
   try {
     const calendar = await getUncachableGoogleCalendarClient();
     
     await calendar.events.delete({
-      calendarId: calendarId,
+      calendarId: targetCalendarId,
       eventId: eventId,
     });
   } catch (error) {
     console.error('Error deleting calendar event:', error);
-    throw error;
+    throw mapGoogleApiError(error, 'Google Calendar 이벤트를 삭제하지 못했습니다.');
   }
 }
 
@@ -257,13 +533,14 @@ export async function deleteCampaignEvent(
  */
 export async function getCalendarEvent(
   eventId: string,
-  calendarId: string = 'primary'
+  calendarId?: string
 ): Promise<CalendarEvent | null> {
+  const targetCalendarId = calendarId || getCalendarId();
   try {
     const calendar = await getUncachableGoogleCalendarClient();
     
     const response = await calendar.events.get({
-      calendarId: calendarId,
+      calendarId: targetCalendarId,
       eventId: eventId,
     });
     

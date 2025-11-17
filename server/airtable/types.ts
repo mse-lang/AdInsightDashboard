@@ -1,5 +1,5 @@
 import type { FieldSet, Record as AirtableRecord } from 'airtable';
-import type { PipelineStatus as SharedPipelineStatus } from '../shared/schema';
+import type { PipelineStatus as SharedPipelineStatus } from '../../shared/schema';
 
 // Generic Airtable record type
 export type AirtableRecordType<T extends FieldSet> = AirtableRecord<T>;
@@ -23,6 +23,8 @@ export interface AgencyFields extends FieldSet {
   'Contact Person': string;
   'Email': string;
   'Phone': string;
+  'Bank Name'?: string;
+  'Bank Account Number'?: string;
   'Status': 'Active' | 'Inactive';
   'Notes'?: string;
   'Advertisers'?: string[]; // Array of advertiser record IDs

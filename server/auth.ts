@@ -1,8 +1,7 @@
 import crypto from 'crypto';
 import type { Express, RequestHandler } from 'express';
 import session from 'express-session';
-import connectPg from 'connect-pg-simple';
-import { storage } from './storage';
+import createMemoryStore from 'memorystore';
 import { getUncachableResendClient } from './resendClient';
 
 const ADMIN_EMAIL = 'ad@venturesquare.net';
@@ -18,14 +17,24 @@ declare module 'express-session' {
   }
 }
 
+// In-memory token storage for development
+// In production, consider using Airtable or Redis
+interface AuthToken {
+  token: string;
+  email: string;
+  expiresAt: Date;
+  consumed: boolean;
+}
+
+const authTokenStore = new Map<string, AuthToken>();
+
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: 'sessions',
+  
+  // Use MemoryStore for session management
+  const MemoryStore = createMemoryStore(session);
+  const sessionStore = new MemoryStore({
+    checkPeriod: 86400000, // prune expired entries every 24h
   });
 
   if (!process.env.SESSION_SECRET) {
@@ -124,7 +133,8 @@ export async function createAuthToken(email: string): Promise<string> {
   const hashedToken = hashToken(token);
   const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
-  await storage.createAuthToken({
+  // Store in memory (replace with Airtable or Redis in production)
+  authTokenStore.set(hashedToken, {
     token: hashedToken,
     email,
     expiresAt,
@@ -136,7 +146,7 @@ export async function createAuthToken(email: string): Promise<string> {
 
 export async function verifyAuthToken(token: string): Promise<string | null> {
   const hashedToken = hashToken(token);
-  const authToken = await storage.getAuthToken(hashedToken);
+  const authToken = authTokenStore.get(hashedToken);
 
   if (!authToken) {
     return null;
@@ -147,9 +157,23 @@ export async function verifyAuthToken(token: string): Promise<string | null> {
   }
 
   if (authToken.expiresAt < new Date()) {
+    authTokenStore.delete(hashedToken);
     return null;
   }
 
-  await storage.consumeAuthToken(hashedToken);
+  // Mark as consumed
+  authToken.consumed = true;
+  authTokenStore.set(hashedToken, authToken);
+  
   return authToken.email;
 }
+
+// Clean up expired tokens periodically
+setInterval(() => {
+  const now = new Date();
+  for (const [key, token] of authTokenStore.entries()) {
+    if (token.expiresAt < now) {
+      authTokenStore.delete(key);
+    }
+  }
+}, 60 * 60 * 1000); // Clean up every hour

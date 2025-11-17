@@ -970,34 +970,6 @@ export default function AdvertisersAirtable() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="businessRegistrationNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>사업자등록번호</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-business-registration-number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bankAccountNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>통장 번호</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-bank-account-number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               <FormField
                 control={form.control}
                 name="adMaterials"
@@ -1060,6 +1032,40 @@ export default function AdvertisersAirtable() {
                   />
                 )}
               </div>
+              {form.watch("contactPersonType") === "Agency" && form.watch("agencyId") && (() => {
+                const selectedAgency = agencies.find(a => a.id === form.watch("agencyId"));
+                return selectedAgency ? (
+                  <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                    <div className="text-sm font-medium text-muted-foreground mb-2">
+                      에이전시 정보 (참고용)
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">회사명</div>
+                        <div className="text-sm font-medium">{selectedAgency.name}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">사업자등록번호</div>
+                        <div className="text-sm font-medium">
+                          {selectedAgency.businessRegistrationNumber || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">은행명</div>
+                        <div className="text-sm font-medium">
+                          {selectedAgency.bankName || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">계좌번호</div>
+                        <div className="text-sm font-medium">
+                          {selectedAgency.bankAccountNumber || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

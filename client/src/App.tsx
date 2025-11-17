@@ -75,17 +75,14 @@ function MainRouter() {
           <Route path="/" component={Dashboard} />
           <Route path="/ads/:id" component={AdDetail} />
           <Route path="/ads" component={Ads} />
-          <Route path="/advertisers-airtable" component={AdvertisersAirtable} />
           <Route path="/advertisers/:id" component={AdvertiserDetail} />
           <Route path="/advertisers" component={AdvertisersAirtable} />
           <Route path="/ad-slots" component={AdSlots} />
-          <Route path="/quotes-airtable" component={QuotesAirtable} />
-          <Route path="/quotes" component={Quotes} />
+          <Route path="/quotes" component={QuotesAirtable} />
           <Route path="/invoices" component={Invoices} />
           <Route path="/tax-invoices" component={TaxInvoices} />
           <Route path="/campaigns" component={Campaigns} />
           <Route path="/agencies" component={Agencies} />
-          <Route path="/calendar" component={AdCalendar} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/materials" component={Materials} />
           <Route path="/settings" component={Settings} />
